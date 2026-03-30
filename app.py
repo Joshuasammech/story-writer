@@ -35,134 +35,27 @@ TEMPLATES = {
     "contrast_frame": {
         "name": "Contrast Frame",
         "description": "Expectation vs result vs conventional timeline",
-        "prompt": """\
-You are a concise story writer. Read the report and write a short, punchy story \
-— 150 to 250 words — built around three things:
-
-1. THE EXPECTATION — What did the person expect or hope to achieve?
-2. THE RESULT — What did they actually get? (better, worse, or different)
-3. THE CONTRAST FRAME — How long does this kind of achievement conventionally \
-take in the real world? Name a specific conventional timeframe, then contrast \
-it with how long it actually took in this report.
-
-FORMAT — use exactly this structure:
-
----
-# [One punchy title]
-
-**What they expected:** 1–2 sentences.
-
-**What they got:** 1–2 sentences.
-
-**The contrast frame:** State the conventional timeline (e.g. "Most people take \
-X years to…"), then state the actual timeline, then one sentence on why that gap matters.
----
-
-RULES: Under 250 words. No bullet lists. No extra sections. Plain, direct English.""",
+        "prompt": "Write a punchy 150-200 word story from this report using ONLY this format:\n\n---\n# [Title]\n\n**What they expected:** 1-2 sentences.\n\n**What they got:** 1-2 sentences.\n\n**The contrast frame:** Conventional timeline for this achievement (e.g. 'Most people take X years to…'), actual timeline, one sentence on why the gap matters.\n---\n\nNo extra sections. Plain English.",
     },
     "sales_win": {
         "name": "Sales Win",
         "description": "Challenge, approach, result with numbers",
-        "prompt": """\
-You are a concise story writer specialising in sales achievements. Read the \
-report and write a short, punchy story — 150 to 250 words — built around:
-
-1. THE CHALLENGE — What was the sales obstacle or goal?
-2. THE APPROACH — What did they do differently or exceptionally well?
-3. THE WIN — What was the result? Include specific numbers, revenue, or \
-percentages if available. How does this compare to typical sales performance?
-
-FORMAT — use exactly this structure:
-
----
-# [One punchy title]
-
-**The challenge:** 1–2 sentences.
-
-**The approach:** 1–2 sentences.
-
-**The win:** State the result with numbers, then one sentence on what made this \
-performance stand out against the norm.
----
-
-RULES: Under 250 words. No bullet lists. No extra sections. Plain, direct English.""",
+        "prompt": "Write a punchy 150-200 word sales story from this report using ONLY this format:\n\n---\n# [Title]\n\n**The challenge:** 1-2 sentences.\n\n**The approach:** 1-2 sentences.\n\n**The win:** Result with numbers, one sentence on why it stands out.\n---\n\nNo extra sections. Plain English.",
     },
     "milestone": {
         "name": "Milestone Story",
         "description": "The journey, the obstacle, the breakthrough",
-        "prompt": """\
-You are a concise story writer. Read the report and write a short, punchy story \
-— 150 to 250 words — built around:
-
-1. THE STARTING POINT — Where did this person or team begin? What was the situation?
-2. THE OBSTACLE — What stood in their way or made this hard?
-3. THE BREAKTHROUGH — What was the milestone achieved, and why does it matter?
-
-FORMAT — use exactly this structure:
-
----
-# [One punchy title]
-
-**Where they started:** 1–2 sentences.
-
-**The obstacle:** 1–2 sentences.
-
-**The breakthrough:** 1–2 sentences on the achievement and its significance.
----
-
-RULES: Under 250 words. No bullet lists. No extra sections. Plain, direct English.""",
+        "prompt": "Write a punchy 150-200 word milestone story from this report using ONLY this format:\n\n---\n# [Title]\n\n**Where they started:** 1-2 sentences.\n\n**The obstacle:** 1-2 sentences.\n\n**The breakthrough:** 1-2 sentences on the achievement and its significance.\n---\n\nNo extra sections. Plain English.",
     },
     "personal_growth": {
         "name": "Personal Growth",
         "description": "Before, the shift, and what it means",
-        "prompt": """\
-You are a concise story writer. Read the report and write a short, punchy story \
-— 150 to 250 words — focused on personal transformation:
-
-1. BEFORE — What was this person's situation, mindset, or capability before?
-2. THE SHIFT — What changed? What did they learn, do, or decide?
-3. AFTER — What does their life, career, or confidence look like now? \
-What does this growth mean for their future?
-
-FORMAT — use exactly this structure:
-
----
-# [One punchy title]
-
-**Before:** 1–2 sentences.
-
-**The shift:** 1–2 sentences.
-
-**After:** 1–2 sentences on the transformation and what it unlocks.
----
-
-RULES: Under 250 words. No bullet lists. No extra sections. Plain, direct English.""",
+        "prompt": "Write a punchy 150-200 word personal transformation story from this report using ONLY this format:\n\n---\n# [Title]\n\n**Before:** 1-2 sentences.\n\n**The shift:** 1-2 sentences.\n\n**After:** 1-2 sentences on the transformation and what it unlocks.\n---\n\nNo extra sections. Plain English.",
     },
     "client_impact": {
         "name": "Client Impact",
         "description": "Problem, solution, measurable transformation",
-        "prompt": """\
-You are a concise story writer. Read the report and write a short, punchy story \
-— 150 to 250 words — about the impact delivered to a client or customer:
-
-1. THE PROBLEM — What was the client struggling with or trying to solve?
-2. THE SOLUTION — What was done to help them? Keep it specific.
-3. THE TRANSFORMATION — What changed for the client? Include measurable \
-outcomes (time saved, revenue gained, goals hit) if available.
-
-FORMAT — use exactly this structure:
-
----
-# [One punchy title]
-
-**The problem:** 1–2 sentences.
-
-**The solution:** 1–2 sentences.
-
-**The transformation:** 1–2 sentences with measurable impact where possible.
----
-
-RULES: Under 250 words. No bullet lists. No extra sections. Plain, direct English.""",
+        "prompt": "Write a punchy 150-200 word client impact story from this report using ONLY this format:\n\n---\n# [Title]\n\n**The problem:** 1-2 sentences.\n\n**The solution:** 1-2 sentences.\n\n**The transformation:** 1-2 sentences with measurable outcomes where possible.\n---\n\nNo extra sections. Plain English.",
     },
 }
 
@@ -280,36 +173,30 @@ def generate():
                 report_text = content
                 yield sse("status", f"Using pasted text ({len(report_text):,} chars)")
 
-            yield sse("status", "Claude is thinking…")
+            yield sse("status", "Writing story…")
+
+            # Truncate to 2000 chars — enough context for a 250-word story
+            MAX_CHARS = 2000
+            if len(report_text) > MAX_CHARS:
+                report_text = report_text[:MAX_CHARS] + "\n[truncated]"
 
             client = anthropic.Anthropic()
-            user_message = (
-                f"Document title: {title}\n\n"
-                f"--- REPORT CONTENT START ---\n{report_text}\n--- REPORT CONTENT END ---\n\n"
-                "Please write the story. Follow the format exactly."
-            )
+            user_message = f"Title: {title}\n\n{report_text}"
 
             with client.messages.stream(
-                model="claude-opus-4-6",
-                max_tokens=1024,
-                thinking={"type": "adaptive"},
+                model="claude-sonnet-4-6",
+                max_tokens=600,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             ) as stream_obj:
-                thinking_started = False
-                writing_started  = False
+                writing_started = False
                 for event in stream_obj:
                     if event.type == "content_block_start":
-                        if event.content_block.type == "thinking" and not thinking_started:
-                            thinking_started = True
-                            yield sse("thinking_start", "")
-                        elif event.content_block.type == "text" and not writing_started:
+                        if event.content_block.type == "text" and not writing_started:
                             writing_started = True
                             yield sse("writing_start", "")
                     elif event.type == "content_block_delta":
-                        if event.delta.type == "thinking_delta":
-                            yield sse("thinking", event.delta.thinking)
-                        elif event.delta.type == "text_delta":
+                        if event.delta.type == "text_delta":
                             yield sse("token", event.delta.text)
 
             yield sse("done", "")

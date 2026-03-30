@@ -356,7 +356,7 @@
 <header>
   <span class="logo">📖</span>
   <h1>Story Writer Bot</h1>
-  <span class="badge">Powered by Claude Opus 4.6</span>
+  <span class="badge">Powered by Claude Sonnet 4.6</span>
   <a href="/logout" style="margin-left:auto;font-size:12px;padding:4px 12px;border-radius:6px;border:1px solid #e2e8f0;background:transparent;color:#94a3b8;text-decoration:none;cursor:pointer;">Sign out</a>
 </header>
 
@@ -408,14 +408,6 @@
     <span id="status-text">Ready</span>
   </div>
 
-  <!-- Thinking panel -->
-  <div id="thinking-panel">
-    <div class="thinking-header" onclick="toggleThinking()">
-      <span>🧠 Claude's reasoning</span>
-      <span id="thinking-toggle">▸ Show</span>
-    </div>
-    <pre class="thinking-body" id="thinking-content"></pre>
-  </div>
 
   <!-- Output -->
   <div id="output-card">
@@ -469,14 +461,6 @@
     });
   });
 
-  // ── Thinking panel ───────────────────────────────────────────────────────────
-  function toggleThinking() {
-    const body    = document.getElementById('thinking-content');
-    const toggle  = document.getElementById('thinking-toggle');
-    const isOpen  = body.classList.toggle('open');
-    toggle.textContent = isOpen ? '▾ Hide' : '▸ Show';
-  }
-
   // ── State ────────────────────────────────────────────────────────────────────
   let rawMarkdown = '';
   let cursorEl    = null;
@@ -516,8 +500,6 @@
 
     // Reset UI
     rawMarkdown = '';
-    document.getElementById('thinking-content').textContent = '';
-    document.getElementById('thinking-panel').classList.remove('visible');
     document.getElementById('output-card').classList.add('visible');
     document.getElementById('output').innerHTML = '';
     setGenerating(true);
@@ -570,15 +552,6 @@
     switch (eventName) {
       case 'status':
         setStatus(payload);
-        break;
-
-      case 'thinking_start':
-        document.getElementById('thinking-panel').classList.add('visible');
-        setStatus('Claude is thinking…', 'thinking');
-        break;
-
-      case 'thinking':
-        document.getElementById('thinking-content').textContent += payload;
         break;
 
       case 'writing_start':
