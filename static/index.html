@@ -17,7 +17,6 @@
     --muted:    #6b6b67;
     --accent:   #2563eb;
     --accent-h: #1d4ed8;
-    --thinking: #7c3aed;
     --success:  #16a34a;
     --error:    #dc2626;
     --radius:   10px;
@@ -115,12 +114,21 @@
     box-shadow: 0 1px 2px rgba(0,0,0,.1);
   }
 
-  .input-row {
+  /* URL list */
+  #url-list {
     display: flex;
-    gap: 10px;
-    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
   }
-  input[type="text"], textarea {
+
+  .url-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .url-row input {
     flex: 1;
     border: 1px solid var(--border);
     border-radius: 7px;
@@ -131,13 +139,67 @@
     background: var(--bg);
     outline: none;
     transition: border-color .15s;
-    resize: vertical;
   }
-  input[type="text"]:focus, textarea:focus {
+  .url-row input:focus {
     border-color: var(--accent);
     background: var(--surface);
   }
-  textarea { min-height: 120px; }
+
+  .remove-url-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all .15s;
+  }
+  .remove-url-btn:hover { background: #fef2f2; color: var(--error); border-color: #fecaca; }
+
+  .url-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .add-url-btn {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    background: transparent;
+    border: 1px dashed #bfdbfe;
+    border-radius: 7px;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .add-url-btn:hover { background: #eff6ff; }
+
+  textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+    transition: border-color .15s;
+    resize: vertical;
+    min-height: 120px;
+  }
+  textarea:focus {
+    border-color: var(--accent);
+    background: var(--surface);
+  }
 
   .btn {
     padding: 10px 20px;
@@ -181,7 +243,6 @@
     border: 1px solid var(--border);
   }
   #status-bar.visible { display: flex; }
-  #status-bar.thinking { color: var(--thinking); border-color: #ddd6fe; background: #faf5ff; }
   #status-bar.error    { color: var(--error);    border-color: #fecaca; background: #fef2f2; }
   #status-bar.done     { color: var(--success);  border-color: #bbf7d0; background: #f0fdf4; }
 
@@ -195,85 +256,68 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ── Thinking panel ── */
-  #thinking-panel {
-    display: none;
-    border: 1px solid #ddd6fe;
-    border-radius: var(--radius);
-    background: #faf5ff;
-    overflow: hidden;
-  }
-  #thinking-panel.visible { display: block; }
-  .thinking-header {
+  /* ── Output cards ── */
+  #output-area {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px;
-    cursor: pointer;
-    user-select: none;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--thinking);
+    flex-direction: column;
+    gap: 20px;
   }
-  .thinking-header:hover { background: rgba(124,58,237,.05); }
-  .thinking-body {
-    display: none;
-    padding: 12px 16px 16px;
-    font-size: 12.5px;
-    line-height: 1.6;
-    color: #5b21b6;
-    white-space: pre-wrap;
-    max-height: 240px;
-    overflow-y: auto;
-    border-top: 1px solid #ddd6fe;
-    font-family: "SF Mono", "Fira Code", monospace;
-  }
-  .thinking-body.open { display: block; }
 
-  /* ── Output ── */
-  #output-card {
-    display: none;
+  .story-card {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     overflow: hidden;
   }
-  #output-card.visible { display: block; }
 
-  .output-toolbar {
+  .story-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 12px 20px;
     border-bottom: 1px solid var(--border);
     background: var(--bg);
+    gap: 10px;
   }
-  .output-toolbar span {
+  .story-toolbar .story-label {
     font-size: 13px;
     font-weight: 600;
     color: var(--muted);
     text-transform: uppercase;
     letter-spacing: .5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
   }
-  .output-toolbar .actions { display: flex; gap: 8px; }
+  .story-toolbar .actions { display: flex; gap: 8px; flex-shrink: 0; }
 
-  #output {
+  .story-body {
     padding: 32px 40px;
     font-size: 15px;
     line-height: 1.75;
-    min-height: 200px;
+    min-height: 100px;
+  }
+
+  .story-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 20px 40px;
+    font-size: 13px;
+    color: var(--muted);
   }
 
   /* ── Markdown styles ── */
-  #output h1 {
+  .story-body h1 {
     font-size: 26px;
     font-weight: 700;
     line-height: 1.3;
     margin-bottom: 6px;
     letter-spacing: -.4px;
   }
-  #output h2 {
+  .story-body h2 {
     font-size: 17px;
     font-weight: 700;
     margin-top: 36px;
@@ -282,40 +326,17 @@
     border-bottom: 2px solid var(--border);
     color: var(--text);
   }
-  #output h2:first-of-type { margin-top: 24px; }
-  #output p { margin-bottom: 14px; }
-  #output ul, #output ol { padding-left: 22px; margin-bottom: 14px; }
-  #output li { margin-bottom: 4px; }
-  #output strong { font-weight: 700; }
-  #output em { font-style: italic; }
-  #output hr {
+  .story-body h2:first-of-type { margin-top: 24px; }
+  .story-body p { margin-bottom: 14px; }
+  .story-body ul, .story-body ol { padding-left: 22px; margin-bottom: 14px; }
+  .story-body li { margin-bottom: 4px; }
+  .story-body strong { font-weight: 700; }
+  .story-body em { font-style: italic; }
+  .story-body hr {
     border: none;
     border-top: 2px solid var(--border);
     margin: 28px 0;
   }
-  #output table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 18px 0;
-    font-size: 14px;
-  }
-  #output th {
-    background: var(--bg);
-    font-weight: 700;
-    text-align: left;
-    padding: 10px 14px;
-    border: 1px solid var(--border);
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    color: var(--muted);
-  }
-  #output td {
-    padding: 9px 14px;
-    border: 1px solid var(--border);
-    vertical-align: top;
-  }
-  #output tr:nth-child(even) td { background: var(--bg); }
 
   /* ── Cursor blink ── */
   .cursor {
@@ -351,30 +372,35 @@
 <main>
   <!-- Input card -->
   <div class="card">
-    <h2>Source Report</h2>
+    <h2>Source Reports</h2>
 
     <div class="tabs">
-      <button class="tab active" data-tab="url">Google Doc URL</button>
+      <button class="tab active" data-tab="url">Google Doc URLs</button>
       <button class="tab"        data-tab="text">Paste Text</button>
     </div>
 
     <div id="tab-url">
-      <div class="input-row">
-        <input type="text" id="doc-url"
-          placeholder="https://docs.google.com/document/d/…"
-          autocomplete="off" spellcheck="false"/>
+      <div id="url-list">
+        <div class="url-row">
+          <input type="text" class="doc-url"
+            placeholder="https://docs.google.com/document/d/…"
+            autocomplete="off" spellcheck="false"/>
+        </div>
+      </div>
+      <div class="url-actions">
+        <button class="add-url-btn" onclick="addUrlField()">+ Add another URL</button>
         <button class="btn btn-primary" id="generate-btn" onclick="generate()">
           <span>Generate</span>
         </button>
       </div>
-      <p style="margin-top:10px;font-size:12px;color:var(--muted)">
-        The doc must be set to <strong>Anyone with the link can view</strong>
-        (Share → Change to Anyone with the link). No login required.
+      <p style="margin-top:12px;font-size:12px;color:var(--muted)">
+        Each doc must be set to <strong>Anyone with the link can view</strong>.
+        Stories generate one by one.
       </p>
     </div>
 
     <div id="tab-text" style="display:none">
-      <div class="input-row" style="flex-direction:column;">
+      <div style="display:flex;flex-direction:column;gap:10px;">
         <textarea id="doc-text" placeholder="Paste your report text here…"></textarea>
         <button class="btn btn-primary" id="generate-btn-text"
           onclick="generate()" style="align-self:flex-end">
@@ -384,35 +410,18 @@
     </div>
   </div>
 
-  <!-- Status -->
+  <!-- Status bar -->
   <div id="status-bar">
     <span class="spinner" id="spinner"></span>
     <span id="status-text">Ready</span>
   </div>
 
-
-  <!-- Output -->
-  <div id="output-card">
-    <div class="output-toolbar">
-      <span>Case Report</span>
-      <div class="actions">
-        <button class="btn btn-ghost" onclick="copyOutput()">Copy</button>
-        <button class="btn btn-ghost" onclick="downloadMd()">↓ Markdown</button>
-        <button class="btn btn-ghost" onclick="downloadPdf()">↓ PDF</button>
-        <button class="btn btn-ghost" onclick="downloadDocx()">↓ Word</button>
-      </div>
-    </div>
-    <div id="output">
-      <div class="empty-state">
-        <div class="icon">✍️</div>
-        <p>Your case report will appear here.</p>
-      </div>
-    </div>
-  </div>
+  <!-- Output area (multiple story cards) -->
+  <div id="output-area"></div>
 </main>
 
 <script>
-  // ── Tab switching ────────────────────────────────────────────────────────────
+  // ── Tab switching ─────────────────────────────────────────────────────────────
   let activeTab = 'url';
   document.querySelectorAll('.tab').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -424,9 +433,47 @@
     });
   });
 
-  // ── State ────────────────────────────────────────────────────────────────────
-  let rawMarkdown = '';
-  let cursorEl    = null;
+  // ── URL field management ──────────────────────────────────────────────────────
+  function addUrlField() {
+    const list = document.getElementById('url-list');
+    const row = document.createElement('div');
+    row.className = 'url-row';
+    row.innerHTML = `
+      <input type="text" class="doc-url"
+        placeholder="https://docs.google.com/document/d/…"
+        autocomplete="off" spellcheck="false"/>
+      <button class="remove-url-btn" onclick="removeUrlField(this)" title="Remove">×</button>
+    `;
+    list.appendChild(row);
+    row.querySelector('input').focus();
+    updateRemoveButtons();
+  }
+
+  function removeUrlField(btn) {
+    btn.closest('.url-row').remove();
+    updateRemoveButtons();
+  }
+
+  function updateRemoveButtons() {
+    const rows = document.querySelectorAll('#url-list .url-row');
+    rows.forEach(row => {
+      const existing = row.querySelector('.remove-url-btn');
+      if (rows.length > 1) {
+        if (!existing) {
+          const btn = document.createElement('button');
+          btn.className = 'remove-url-btn';
+          btn.title = 'Remove';
+          btn.textContent = '×';
+          btn.onclick = () => removeUrlField(btn);
+          row.appendChild(btn);
+        }
+      } else {
+        if (existing) existing.remove();
+      }
+    });
+  }
+
+  // ── State ─────────────────────────────────────────────────────────────────────
   let isGenerating = false;
 
   function setStatus(msg, cls = '') {
@@ -446,180 +493,255 @@
     });
   }
 
-  // ── Main generate ────────────────────────────────────────────────────────────
+  // ── Create a story card ───────────────────────────────────────────────────────
+  function createStoryCard(label, index) {
+    const area = document.getElementById('output-area');
+    const card = document.createElement('div');
+    card.className = 'story-card';
+    card.id = `story-card-${index}`;
+    card.innerHTML = `
+      <div class="story-toolbar">
+        <span class="story-label">${escHtml(label)}</span>
+        <div class="actions" id="story-actions-${index}" style="display:none">
+          <button class="btn btn-ghost" onclick="copyStory(${index})">Copy</button>
+          <button class="btn btn-ghost" onclick="downloadStoryMd(${index})">↓ Markdown</button>
+          <button class="btn btn-ghost" onclick="downloadStoryPdf(${index})">↓ PDF</button>
+          <button class="btn btn-ghost" onclick="downloadStoryDocx(${index})">↓ Word</button>
+        </div>
+      </div>
+      <div class="story-status" id="story-status-${index}">
+        <span class="spinner"></span>
+        <span>Waiting…</span>
+      </div>
+      <div class="story-body" id="story-body-${index}" style="display:none"></div>
+    `;
+    area.appendChild(card);
+    return card;
+  }
+
+  // ── Generate one story via SSE ────────────────────────────────────────────────
+  function generateOne(inputType, content, index, label) {
+    return new Promise((resolve) => {
+      const statusEl = document.getElementById(`story-status-${index}`);
+      const bodyEl   = document.getElementById(`story-body-${index}`);
+      const actionsEl = document.getElementById(`story-actions-${index}`);
+
+      let markdown = '';
+      let cursorEl = null;
+
+      function updateStatus(msg) {
+        statusEl.innerHTML = `<span class="spinner"></span><span>${escHtml(msg)}</span>`;
+      }
+
+      function showBody() {
+        statusEl.style.display = 'none';
+        bodyEl.style.display = '';
+      }
+
+      function render() {
+        bodyEl.innerHTML = marked.parse(markdown);
+        if (cursorEl) {
+          cursorEl = document.createElement('span');
+          cursorEl.className = 'cursor';
+          bodyEl.appendChild(cursorEl);
+        }
+      }
+
+      function addCursor() {
+        showBody();
+        cursorEl = document.createElement('span');
+        cursorEl.className = 'cursor';
+        bodyEl.appendChild(cursorEl);
+      }
+
+      function removeCursor() {
+        if (cursorEl) { cursorEl.remove(); cursorEl = null; }
+      }
+
+      function markDone() {
+        removeCursor();
+        statusEl.style.display = 'none';
+        actionsEl.style.display = '';
+        // Store markdown on element for download
+        bodyEl.dataset.markdown = markdown;
+        resolve();
+      }
+
+      function markError(msg) {
+        removeCursor();
+        statusEl.style.display = 'none';
+        bodyEl.style.display = '';
+        bodyEl.innerHTML = `<p style="color:var(--error);padding:0 0 20px">${escHtml(msg)}</p>`;
+        bodyEl.dataset.markdown = '';
+        resolve();
+      }
+
+      updateStatus('Fetching…');
+
+      fetch('/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: inputType, content }),
+      }).then(resp => {
+        const reader  = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let   buffer  = '';
+
+        function pump() {
+          reader.read().then(({ done, value }) => {
+            if (done) { resolve(); return; }
+
+            buffer += decoder.decode(value, { stream: true });
+            const parts = buffer.split('\n\n');
+            buffer = parts.pop();
+
+            for (const part of parts) {
+              const lines = part.split('\n');
+              let eventName = '', dataStr = '';
+              for (const line of lines) {
+                if (line.startsWith('event: ')) eventName = line.slice(7).trim();
+                if (line.startsWith('data: '))  dataStr   = line.slice(6).trim();
+              }
+              if (!eventName) continue;
+
+              let payload = '';
+              try { payload = JSON.parse(dataStr).data; } catch { payload = dataStr; }
+
+              switch (eventName) {
+                case 'status':       updateStatus(payload); break;
+                case 'writing_start': addCursor(); break;
+                case 'token':
+                  markdown += payload;
+                  render();
+                  break;
+                case 'done':         markDone(); return;
+                case 'error':        markError(payload); return;
+              }
+            }
+            pump();
+          }).catch(err => {
+            markError('Network error: ' + err.message);
+          });
+        }
+        pump();
+      }).catch(err => {
+        markError('Network error: ' + err.message);
+      });
+    });
+  }
+
+  // ── Main generate ─────────────────────────────────────────────────────────────
   async function generate() {
     if (isGenerating) return;
 
-    const isUrl   = activeTab === 'url';
-    const content = isUrl
-      ? document.getElementById('doc-url').value.trim()
-      : document.getElementById('doc-text').value.trim();
+    const isUrl = activeTab === 'url';
 
-    if (!content) {
-      setStatus(isUrl ? 'Please enter a Google Doc URL.' : 'Please paste some text.', 'error');
-      document.getElementById('status-bar').classList.add('visible');
-      return;
-    }
-
-    // Reset UI
-    rawMarkdown = '';
-    document.getElementById('output-card').classList.add('visible');
-    document.getElementById('output').innerHTML = '';
-    setGenerating(true);
-    setStatus('Starting…');
-
-    try {
-      const resp = await fetch('/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: isUrl ? 'url' : 'text', content }),
+    // Collect jobs
+    const jobs = [];
+    if (isUrl) {
+      const inputs = document.querySelectorAll('#url-list .doc-url');
+      inputs.forEach((inp, i) => {
+        const val = inp.value.trim();
+        if (val) jobs.push({ type: 'url', content: val, label: `Story ${i + 1}` });
       });
-
-      const reader  = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let   buffer  = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop();
-
-        for (const part of parts) {
-          handleSSE(part);
-        }
+      if (jobs.length === 0) {
+        setStatus('Please enter at least one Google Doc URL.', 'error');
+        document.getElementById('status-bar').classList.add('visible');
+        return;
       }
-    } catch (e) {
-      setStatus('Network error: ' + e.message, 'error');
-      setGenerating(false);
+    } else {
+      const text = document.getElementById('doc-text').value.trim();
+      if (!text) {
+        setStatus('Please paste some text.', 'error');
+        document.getElementById('status-bar').classList.add('visible');
+        return;
+      }
+      jobs.push({ type: 'text', content: text, label: 'Story' });
     }
-  }
 
-  // ── SSE parser ───────────────────────────────────────────────────────────────
-  function handleSSE(raw) {
-    const lines  = raw.split('\n');
-    let eventName = '';
-    let dataStr   = '';
+    // Clear previous output
+    document.getElementById('output-area').innerHTML = '';
+    setGenerating(true);
+    setStatus(`Generating ${jobs.length} ${jobs.length === 1 ? 'story' : 'stories'}…`);
 
-    for (const line of lines) {
-      if (line.startsWith('event: ')) eventName = line.slice(7).trim();
-      if (line.startsWith('data: '))  dataStr   = line.slice(6).trim();
+    // Create all cards upfront
+    jobs.forEach((job, i) => createStoryCard(job.label, i));
+
+    // Generate sequentially
+    for (let i = 0; i < jobs.length; i++) {
+      const job = jobs[i];
+      setStatus(`Writing story ${i + 1} of ${jobs.length}…`);
+      // Update card label with index indicator
+      const card = document.getElementById(`story-card-${i}`);
+      const labelEl = card.querySelector('.story-label');
+      labelEl.textContent = jobs.length > 1 ? `Story ${i + 1} of ${jobs.length}` : 'Case Report';
+
+      await generateOne(job.type, job.content, i, job.label);
     }
-    if (!eventName) return;
 
-    let payload = '';
-    try { payload = JSON.parse(dataStr).data; } catch { payload = dataStr; }
-
-    switch (eventName) {
-      case 'status':
-        setStatus(payload);
-        break;
-
-      case 'writing_start':
-        setStatus('Writing case report…');
-        addCursor();
-        break;
-
-      case 'token':
-        rawMarkdown += payload;
-        renderMarkdown();
-        break;
-
-      case 'done':
-        removeCursor();
-        setStatus('Done!', 'done');
-        setGenerating(false);
-        break;
-
-      case 'error':
-        removeCursor();
-        setStatus('Error: ' + payload, 'error');
-        setGenerating(false);
-        document.getElementById('output').innerHTML =
-          `<p style="color:var(--error);padding:20px">${escHtml(payload)}</p>`;
-        break;
-    }
+    setStatus(`Done! ${jobs.length} ${jobs.length === 1 ? 'story' : 'stories'} generated.`, 'done');
+    setGenerating(false);
   }
 
-  // ── Markdown rendering ───────────────────────────────────────────────────────
-  function renderMarkdown() {
-    const out = document.getElementById('output');
-    out.innerHTML = marked.parse(rawMarkdown);
-    // Re-attach cursor at end
-    if (cursorEl) {
-      cursorEl = document.createElement('span');
-      cursorEl.className = 'cursor';
-      out.appendChild(cursorEl);
-    }
-    // Auto-scroll only if near bottom
-    const isNearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 200;
-    if (isNearBottom) window.scrollTo({ top: document.body.scrollHeight });
+  // ── Per-card download helpers ─────────────────────────────────────────────────
+  function getStoryMarkdown(index) {
+    const bodyEl = document.getElementById(`story-body-${index}`);
+    return bodyEl ? (bodyEl.dataset.markdown || '') : '';
   }
 
-  function addCursor() {
-    const out = document.getElementById('output');
-    cursorEl  = document.createElement('span');
-    cursorEl.className = 'cursor';
-    out.appendChild(cursorEl);
-  }
-
-  function removeCursor() {
-    if (cursorEl) { cursorEl.remove(); cursorEl = null; }
-  }
-
-  // ── Copy / Download ──────────────────────────────────────────────────────────
-  function copyOutput() {
-    navigator.clipboard.writeText(rawMarkdown).then(() => {
-      const btn = document.querySelector('.output-toolbar .actions .btn-ghost');
+  function copyStory(index) {
+    const md = getStoryMarkdown(index);
+    navigator.clipboard.writeText(md).then(() => {
+      const btn = document.querySelector(`#story-actions-${index} .btn-ghost`);
       const orig = btn.textContent;
       btn.textContent = 'Copied!';
       setTimeout(() => btn.textContent = orig, 1500);
     });
   }
 
-  function downloadMd() {
-    const blob = new Blob([rawMarkdown], { type: 'text/markdown' });
+  function downloadStoryMd(index) {
+    const md = getStoryMarkdown(index);
+    const blob = new Blob([md], { type: 'text/markdown' });
     Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob), download: 'story.md',
+      href: URL.createObjectURL(blob),
+      download: `story-${index + 1}.md`,
     }).click();
   }
 
-  function downloadPdf() {
-    const el = document.getElementById('output');
+  function downloadStoryPdf(index) {
+    const el = document.getElementById(`story-body-${index}`);
     html2pdf().set({
       margin: [15, 20],
-      filename: 'story.pdf',
+      filename: `story-${index + 1}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     }).from(el).save();
   }
 
-  async function downloadDocx() {
+  async function downloadStoryDocx(index) {
+    const md = getStoryMarkdown(index);
     const resp = await fetch('/download/docx', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: rawMarkdown }),
+      body: JSON.stringify({ content: md }),
     });
     if (!resp.ok) { alert('Failed to generate Word document.'); return; }
     const blob = await resp.blob();
     Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob), download: 'story.docx',
+      href: URL.createObjectURL(blob),
+      download: `story-${index + 1}.docx`,
     }).click();
   }
 
   function escHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  // Enter key on URL input
-  document.getElementById('doc-url').addEventListener('keydown', e => {
+  // Enter key on first URL input
+  document.querySelector('.doc-url').addEventListener('keydown', e => {
     if (e.key === 'Enter') generate();
   });
-
-
 </script>
 </body>
 </html>
