@@ -29,6 +29,143 @@ app.secret_key = os.environ.get("SECRET_KEY", os.urandom(32))
 LOGIN_USERNAME = os.environ.get("LOGIN_USERNAME", "admin")
 LOGIN_PASSWORD = os.environ.get("LOGIN_PASSWORD", "changeme")
 
+# ── Story templates ────────────────────────────────────────────────────────────
+
+TEMPLATES = {
+    "contrast_frame": {
+        "name": "Contrast Frame",
+        "description": "Expectation vs result vs conventional timeline",
+        "prompt": """\
+You are a concise story writer. Read the report and write a short, punchy story \
+— 150 to 250 words — built around three things:
+
+1. THE EXPECTATION — What did the person expect or hope to achieve?
+2. THE RESULT — What did they actually get? (better, worse, or different)
+3. THE CONTRAST FRAME — How long does this kind of achievement conventionally \
+take in the real world? Name a specific conventional timeframe, then contrast \
+it with how long it actually took in this report.
+
+FORMAT — use exactly this structure:
+
+---
+# [One punchy title]
+
+**What they expected:** 1–2 sentences.
+
+**What they got:** 1–2 sentences.
+
+**The contrast frame:** State the conventional timeline (e.g. "Most people take \
+X years to…"), then state the actual timeline, then one sentence on why that gap matters.
+---
+
+RULES: Under 250 words. No bullet lists. No extra sections. Plain, direct English.""",
+    },
+    "sales_win": {
+        "name": "Sales Win",
+        "description": "Challenge, approach, result with numbers",
+        "prompt": """\
+You are a concise story writer specialising in sales achievements. Read the \
+report and write a short, punchy story — 150 to 250 words — built around:
+
+1. THE CHALLENGE — What was the sales obstacle or goal?
+2. THE APPROACH — What did they do differently or exceptionally well?
+3. THE WIN — What was the result? Include specific numbers, revenue, or \
+percentages if available. How does this compare to typical sales performance?
+
+FORMAT — use exactly this structure:
+
+---
+# [One punchy title]
+
+**The challenge:** 1–2 sentences.
+
+**The approach:** 1–2 sentences.
+
+**The win:** State the result with numbers, then one sentence on what made this \
+performance stand out against the norm.
+---
+
+RULES: Under 250 words. No bullet lists. No extra sections. Plain, direct English.""",
+    },
+    "milestone": {
+        "name": "Milestone Story",
+        "description": "The journey, the obstacle, the breakthrough",
+        "prompt": """\
+You are a concise story writer. Read the report and write a short, punchy story \
+— 150 to 250 words — built around:
+
+1. THE STARTING POINT — Where did this person or team begin? What was the situation?
+2. THE OBSTACLE — What stood in their way or made this hard?
+3. THE BREAKTHROUGH — What was the milestone achieved, and why does it matter?
+
+FORMAT — use exactly this structure:
+
+---
+# [One punchy title]
+
+**Where they started:** 1–2 sentences.
+
+**The obstacle:** 1–2 sentences.
+
+**The breakthrough:** 1–2 sentences on the achievement and its significance.
+---
+
+RULES: Under 250 words. No bullet lists. No extra sections. Plain, direct English.""",
+    },
+    "personal_growth": {
+        "name": "Personal Growth",
+        "description": "Before, the shift, and what it means",
+        "prompt": """\
+You are a concise story writer. Read the report and write a short, punchy story \
+— 150 to 250 words — focused on personal transformation:
+
+1. BEFORE — What was this person's situation, mindset, or capability before?
+2. THE SHIFT — What changed? What did they learn, do, or decide?
+3. AFTER — What does their life, career, or confidence look like now? \
+What does this growth mean for their future?
+
+FORMAT — use exactly this structure:
+
+---
+# [One punchy title]
+
+**Before:** 1–2 sentences.
+
+**The shift:** 1–2 sentences.
+
+**After:** 1–2 sentences on the transformation and what it unlocks.
+---
+
+RULES: Under 250 words. No bullet lists. No extra sections. Plain, direct English.""",
+    },
+    "client_impact": {
+        "name": "Client Impact",
+        "description": "Problem, solution, measurable transformation",
+        "prompt": """\
+You are a concise story writer. Read the report and write a short, punchy story \
+— 150 to 250 words — about the impact delivered to a client or customer:
+
+1. THE PROBLEM — What was the client struggling with or trying to solve?
+2. THE SOLUTION — What was done to help them? Keep it specific.
+3. THE TRANSFORMATION — What changed for the client? Include measurable \
+outcomes (time saved, revenue gained, goals hit) if available.
+
+FORMAT — use exactly this structure:
+
+---
+# [One punchy title]
+
+**The problem:** 1–2 sentences.
+
+**The solution:** 1–2 sentences.
+
+**The transformation:** 1–2 sentences with measurable impact where possible.
+---
+
+RULES: Under 250 words. No bullet lists. No extra sections. Plain, direct English.""",
+    },
+}
+
 # ── Auth helpers ───────────────────────────────────────────────────────────────
 
 def login_required(f):
@@ -40,40 +177,6 @@ def login_required(f):
     return decorated
 
 
-# ── System prompt ──────────────────────────────────────────────────────────────
-
-SYSTEM_PROMPT = """\
-You are a concise story writer. Your job is to read a report and write a short,
-punchy story — 150 to 250 words maximum — built around three things:
-
-1. THE EXPECTATION — What did the person expect or hope to achieve?
-2. THE RESULT — What did they actually get? (better, worse, or different)
-3. THE CONTRAST FRAME — How long does this kind of achievement conventionally
-   take in the real world? Draw on your knowledge of industry norms and
-   historical benchmarks to name a specific conventional timeframe, then
-   contrast it with how long it actually took in this report.
-
-FORMAT — always use exactly this structure, nothing more:
-
----
-# [One punchy title]
-
-**What they expected:** 1–2 sentences.
-
-**What they got:** 1–2 sentences.
-
-**The contrast frame:** State the conventional timeline for this type of
-achievement (e.g. "Most people take X years to…"), then state the actual
-timeline, then one sentence on why that gap matters.
----
-
-RULES:
-- Total output must be under 250 words.
-- No bullet lists, no extra sections, no headers beyond the three above.
-- Write in plain, direct English. No jargon or hype.
-- If the report lacks enough detail for a section, write one honest sentence
-  saying what information is missing.
-"""
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -132,6 +235,12 @@ def logout():
 
 # ── App routes ─────────────────────────────────────────────────────────────────
 
+@app.route("/templates")
+@login_required
+def get_templates():
+    return {k: {"name": v["name"], "description": v["description"]} for k, v in TEMPLATES.items()}
+
+
 @app.route("/")
 @login_required
 def index():
@@ -143,11 +252,15 @@ def index():
 @login_required
 def generate():
     body = request.get_json(force=True)
-    input_type = body.get("type", "url")
-    content    = body.get("content", "").strip()
+    input_type   = body.get("type", "url")
+    content      = body.get("content", "").strip()
+    template_key = body.get("template", "contrast_frame")
 
     if not content:
         return {"error": "No content provided."}, 400
+
+    template = TEMPLATES.get(template_key, TEMPLATES["contrast_frame"])
+    system_prompt = template["prompt"]
 
     def stream():
         try:
@@ -180,7 +293,7 @@ def generate():
                 model="claude-opus-4-6",
                 max_tokens=1024,
                 thinking={"type": "adaptive"},
-                system=SYSTEM_PROMPT,
+                system=system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             ) as stream_obj:
                 thinking_started = False
