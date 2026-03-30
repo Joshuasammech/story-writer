@@ -1,12 +1,13 @@
 """
 Story Writer Bot — Web Interface
-Flask app with SSE streaming.
+Flask app with simple username/password login + SSE streaming.
 """
 
 import io
 import json
 import os
 import re
+from functools import wraps
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -16,14 +17,28 @@ import requests
 from docx import Document
 from docx.shared import Pt
 from flask import (
-    Flask, Response, request, send_file,
-    stream_with_context,
+    Flask, Response, redirect, request, send_file,
+    session, stream_with_context, url_for,
 )
 
 # ── App setup ──────────────────────────────────────────────────────────────────
 
 app = Flask(__name__, static_folder="static")
 app.secret_key = os.environ.get("SECRET_KEY", os.urandom(32))
+
+LOGIN_USERNAME = os.environ.get("LOGIN_USERNAME", "admin")
+LOGIN_PASSWORD = os.environ.get("LOGIN_PASSWORD", "changeme")
+
+# ── Auth helpers ───────────────────────────────────────────────────────────────
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login_page"))
+        return f(*args, **kwargs)
+    return decorated
+
 
 # ── System prompt ──────────────────────────────────────────────────────────────
 
@@ -90,15 +105,42 @@ def sse(event: str, data: str) -> str:
     return f"event: {event}\ndata: {payload}\n\n"
 
 
+# ── Auth routes ────────────────────────────────────────────────────────────────
+
+@app.route("/login", methods=["GET", "POST"])
+def login_page():
+    error = None
+    if request.method == "POST":
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+        if username == LOGIN_USERNAME and password == LOGIN_PASSWORD:
+            session["logged_in"] = True
+            return redirect(url_for("index"))
+        error = "Invalid username or password."
+    with open(os.path.join(app.static_folder, "login.html"), encoding="utf-8") as f:
+        html = f.read()
+    if error:
+        html = html.replace("<!--ERROR-->", f'<p class="error">{error}</p>')
+    return html
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login_page"))
+
+
 # ── App routes ─────────────────────────────────────────────────────────────────
 
 @app.route("/")
+@login_required
 def index():
     with open(os.path.join(app.static_folder, "index.html"), encoding="utf-8") as f:
         return f.read()
 
 
 @app.route("/generate", methods=["POST"])
+@login_required
 def generate():
     body = request.get_json(force=True)
     input_type = body.get("type", "url")
@@ -170,6 +212,7 @@ def generate():
 
 
 @app.route("/download/docx", methods=["POST"])
+@login_required
 def download_docx():
     body    = request.get_json(force=True)
     content = body.get("content", "").strip()
