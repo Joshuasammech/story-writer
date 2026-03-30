@@ -32,19 +32,21 @@ LOGIN_PASSWORD = os.environ.get("LOGIN_PASSWORD", "changeme")
 # ── Story prompt ───────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """\
-Write a punchy 150-200 word story from this report using ONLY this format:
+Write a 150-200 word story from this report. Make it feel genuinely human — write like you're telling a friend about someone remarkable, not filing a report. Let the reader feel the weight of what was achieved and the courage it took. Be warm, direct, and inspiring without being generic or clichéd. Every fact must come from the report — never invent details.
+
+Use ONLY this format:
 
 ---
-# [One punchy title]
+# [A title that captures the human story, not just the outcome]
 
-**The Impact:** What was achieved? What changed as a result? Include specific numbers or outcomes where available. 1-2 sentences.
+**The Impact:** What changed in the world because of this person? Include specific numbers or outcomes from the report. Make the reader feel why it matters. 1-2 sentences.
 
-**The Growth:** What did the person develop, learn, or transform within themselves to get here? 1-2 sentences.
+**The Growth:** What did this person have to become — internally — to get here? What did they push through, let go of, or build in themselves? 1-2 sentences.
 
-**Years Saved:** How long does this kind of achievement conventionally take in the real world? State the typical timeframe (e.g. "Most people take X years to…"), then state how long it actually took, then one sentence on why that gap matters.
+**Years Saved:** Most people take [X years/timeframe] to reach this. [Name or "They"] did it in [actual time]. One sentence on what that compression of time means — not just for them, but for the people they'll now be able to help sooner.
 ---
 
-No extra sections. No bullet lists. Plain, direct English.\
+No extra sections. No bullet lists. No hollow motivational phrases ("journey," "passion," "hard work"). Write with warmth and precision.\
 """
 
 # ── Auth helpers ───────────────────────────────────────────────────────────────
