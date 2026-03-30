@@ -337,18 +337,6 @@
   }
   .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
   .empty-state p { font-size: 14px; }
-  .tmpl-card {
-    padding: 10px 12px;
-    border: 2px solid var(--border);
-    border-radius: 10px;
-    cursor: pointer;
-    transition: border-color .15s, background .15s;
-    background: var(--surface);
-  }
-  .tmpl-card:hover { border-color: #93c5fd; background: #eff6ff; }
-  .tmpl-card.selected { border-color: #3b82f6; background: #eff6ff; }
-  .tmpl-card .tmpl-name { font-size: 13px; font-weight: 600; color: var(--text); }
-  .tmpl-card .tmpl-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -364,12 +352,6 @@
   <!-- Input card -->
   <div class="card">
     <h2>Source Report</h2>
-
-    <!-- Template selector -->
-    <div style="margin-bottom:16px;">
-      <label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px;">Story Template</label>
-      <div id="template-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;"></div>
-    </div>
 
     <div class="tabs">
       <button class="tab active" data-tab="url">Google Doc URL</button>
@@ -430,25 +412,6 @@
 </main>
 
 <script>
-  // ── Templates ────────────────────────────────────────────────────────────────
-  let selectedTemplate = 'contrast_frame';
-
-  fetch('/templates').then(r => r.json()).then(templates => {
-    const grid = document.getElementById('template-grid');
-    Object.entries(templates).forEach(([key, t], i) => {
-      const card = document.createElement('div');
-      card.className = 'tmpl-card' + (i === 0 ? ' selected' : '');
-      card.dataset.key = key;
-      card.innerHTML = `<div class="tmpl-name">${t.name}</div><div class="tmpl-desc">${t.description}</div>`;
-      card.addEventListener('click', () => {
-        document.querySelectorAll('.tmpl-card').forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
-        selectedTemplate = key;
-      });
-      grid.appendChild(card);
-    });
-  });
-
   // ── Tab switching ────────────────────────────────────────────────────────────
   let activeTab = 'url';
   document.querySelectorAll('.tab').forEach(btn => {
@@ -509,7 +472,7 @@
       const resp = await fetch('/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: isUrl ? 'url' : 'text', content, template: selectedTemplate }),
+        body: JSON.stringify({ type: isUrl ? 'url' : 'text', content }),
       });
 
       const reader  = resp.body.getReader();

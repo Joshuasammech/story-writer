@@ -29,35 +29,23 @@ app.secret_key = os.environ.get("SECRET_KEY", os.urandom(32))
 LOGIN_USERNAME = os.environ.get("LOGIN_USERNAME", "admin")
 LOGIN_PASSWORD = os.environ.get("LOGIN_PASSWORD", "changeme")
 
-# ── Story templates ────────────────────────────────────────────────────────────
+# ── Story prompt ───────────────────────────────────────────────────────────────
 
-TEMPLATES = {
-    "contrast_frame": {
-        "name": "Contrast Frame",
-        "description": "Expectation vs result vs conventional timeline",
-        "prompt": "Write a punchy 150-200 word story from this report using ONLY this format:\n\n---\n# [Title]\n\n**What they expected:** 1-2 sentences.\n\n**What they got:** 1-2 sentences.\n\n**The contrast frame:** Conventional timeline for this achievement (e.g. 'Most people take X years to…'), actual timeline, one sentence on why the gap matters.\n---\n\nNo extra sections. Plain English.",
-    },
-    "sales_win": {
-        "name": "Sales Win",
-        "description": "Challenge, approach, result with numbers",
-        "prompt": "Write a punchy 150-200 word sales story from this report using ONLY this format:\n\n---\n# [Title]\n\n**The challenge:** 1-2 sentences.\n\n**The approach:** 1-2 sentences.\n\n**The win:** Result with numbers, one sentence on why it stands out.\n---\n\nNo extra sections. Plain English.",
-    },
-    "milestone": {
-        "name": "Milestone Story",
-        "description": "The journey, the obstacle, the breakthrough",
-        "prompt": "Write a punchy 150-200 word milestone story from this report using ONLY this format:\n\n---\n# [Title]\n\n**Where they started:** 1-2 sentences.\n\n**The obstacle:** 1-2 sentences.\n\n**The breakthrough:** 1-2 sentences on the achievement and its significance.\n---\n\nNo extra sections. Plain English.",
-    },
-    "personal_growth": {
-        "name": "Personal Growth",
-        "description": "Before, the shift, and what it means",
-        "prompt": "Write a punchy 150-200 word personal transformation story from this report using ONLY this format:\n\n---\n# [Title]\n\n**Before:** 1-2 sentences.\n\n**The shift:** 1-2 sentences.\n\n**After:** 1-2 sentences on the transformation and what it unlocks.\n---\n\nNo extra sections. Plain English.",
-    },
-    "client_impact": {
-        "name": "Client Impact",
-        "description": "Problem, solution, measurable transformation",
-        "prompt": "Write a punchy 150-200 word client impact story from this report using ONLY this format:\n\n---\n# [Title]\n\n**The problem:** 1-2 sentences.\n\n**The solution:** 1-2 sentences.\n\n**The transformation:** 1-2 sentences with measurable outcomes where possible.\n---\n\nNo extra sections. Plain English.",
-    },
-}
+SYSTEM_PROMPT = """\
+Write a punchy 150-200 word story from this report using ONLY this format:
+
+---
+# [One punchy title]
+
+**The Impact:** What was achieved? What changed as a result? Include specific numbers or outcomes where available. 1-2 sentences.
+
+**The Growth:** What did the person develop, learn, or transform within themselves to get here? 1-2 sentences.
+
+**Years Saved:** How long does this kind of achievement conventionally take in the real world? State the typical timeframe (e.g. "Most people take X years to…"), then state how long it actually took, then one sentence on why that gap matters.
+---
+
+No extra sections. No bullet lists. Plain, direct English.\
+"""
 
 # ── Auth helpers ───────────────────────────────────────────────────────────────
 
@@ -128,12 +116,6 @@ def logout():
 
 # ── App routes ─────────────────────────────────────────────────────────────────
 
-@app.route("/templates")
-@login_required
-def get_templates():
-    return {k: {"name": v["name"], "description": v["description"]} for k, v in TEMPLATES.items()}
-
-
 @app.route("/")
 @login_required
 def index():
@@ -145,15 +127,11 @@ def index():
 @login_required
 def generate():
     body = request.get_json(force=True)
-    input_type   = body.get("type", "url")
-    content      = body.get("content", "").strip()
-    template_key = body.get("template", "contrast_frame")
+    input_type = body.get("type", "url")
+    content    = body.get("content", "").strip()
 
     if not content:
         return {"error": "No content provided."}, 400
-
-    template = TEMPLATES.get(template_key, TEMPLATES["contrast_frame"])
-    system_prompt = template["prompt"]
 
     def stream():
         try:
@@ -186,7 +164,7 @@ def generate():
             with client.messages.stream(
                 model="claude-sonnet-4-6",
                 max_tokens=600,
-                system=system_prompt,
+                system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_message}],
             ) as stream_obj:
                 writing_started = False
