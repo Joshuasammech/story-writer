@@ -71,7 +71,18 @@ def extract_doc_id(url_or_id: str) -> str:
 def fetch_google_doc(url_or_id: str) -> tuple[str, str]:
     doc_id = extract_doc_id(url_or_id)
     export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
-    resp = requests.get(export_url, timeout=20)
+    for attempt in range(2):
+        try:
+            resp = requests.get(export_url, timeout=25)
+            break
+        except requests.exceptions.ConnectionError:
+            if attempt == 1:
+                raise RuntimeError(
+                    "Could not reach Google Docs. Check your internet connection or try again."
+                )
+        except requests.exceptions.Timeout:
+            if attempt == 1:
+                raise RuntimeError("Google Docs request timed out. Try again.")
     if resp.status_code == 403:
         raise RuntimeError(
             'Access denied. Share the doc as "Anyone with the link can view".'
