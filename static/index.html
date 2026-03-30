@@ -57,33 +57,6 @@
     padding: 2px 8px;
     border-radius: 20px;
   }
-  .user-area {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .user-avatar {
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1px solid var(--border);
-  }
-  .user-name {
-    font-size: 13px;
-    color: var(--muted);
-  }
-  .btn-logout {
-    font-size: 12px;
-    padding: 4px 10px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    text-decoration: none;
-  }
-  .btn-logout:hover { background: var(--bg); color: var(--text); }
 
   /* ── Main layout ── */
   main {
@@ -372,7 +345,6 @@
   <span class="logo">📖</span>
   <h1>Story Writer Bot</h1>
   <span class="badge">Powered by Claude Opus 4.6</span>
-  <div class="user-area" id="user-area"></div>
 </header>
 
 <main>
@@ -673,15 +645,6 @@
     if (e.key === 'Enter') generate();
   });
 
-  // Load user info
-  fetch('/me').then(r => r.json()).then(user => {
-    const area = document.getElementById('user-area');
-    area.innerHTML = `
-      ${user.picture ? `<img class="user-avatar" src="${user.picture}" alt="">` : ''}
-      <span class="user-name">${user.name || user.email}</span>
-      <a class="btn-logout" href="/logout">Sign out</a>
-    `;
-  }).catch(() => {});
 
 </script>
 </body>

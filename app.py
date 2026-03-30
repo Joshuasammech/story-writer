@@ -1,57 +1,29 @@
 """
 Story Writer Bot — Web Interface
-Flask app with Google OAuth (soexcellence.com domain restriction) + SSE streaming.
+Flask app with SSE streaming.
 """
 
 import io
 import json
 import os
 import re
-from functools import wraps
 
 from dotenv import load_dotenv
 load_dotenv()
 
 import anthropic
 import requests
-from authlib.integrations.flask_client import OAuth
 from docx import Document
 from docx.shared import Pt
 from flask import (
-    Flask, Response, redirect, request, send_file,
-    session, stream_with_context, url_for,
+    Flask, Response, request, send_file,
+    stream_with_context,
 )
 
 # ── App setup ──────────────────────────────────────────────────────────────────
 
 app = Flask(__name__, static_folder="static")
 app.secret_key = os.environ.get("SECRET_KEY", os.urandom(32))
-
-ALLOWED_DOMAIN = "soexcellence.com"
-
-# ── Google OAuth ───────────────────────────────────────────────────────────────
-
-oauth = OAuth(app)
-google = oauth.register(
-    name="google",
-    client_id=os.environ.get("GOOGLE_CLIENT_ID"),
-    client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
-    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    client_kwargs={"scope": "openid email profile"},
-)
-
-# ── Auth helpers ───────────────────────────────────────────────────────────────
-
-AUTH_ENABLED = bool(os.environ.get("GOOGLE_CLIENT_ID"))
-
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if AUTH_ENABLED and not session.get("user"):
-            return redirect(url_for("login_page"))
-        return f(*args, **kwargs)
-    return decorated
-
 
 # ── System prompt ──────────────────────────────────────────────────────────────
 
@@ -118,66 +90,15 @@ def sse(event: str, data: str) -> str:
     return f"event: {event}\ndata: {payload}\n\n"
 
 
-# ── Auth routes ────────────────────────────────────────────────────────────────
-
-@app.route("/login")
-def login_page():
-    with open(os.path.join(app.static_folder, "login.html"), encoding="utf-8") as f:
-        return f.read()
-
-
-@app.route("/login/google")
-def login_google():
-    redirect_uri = url_for("auth_callback", _external=True)
-    return google.authorize_redirect(redirect_uri)
-
-
-@app.route("/auth/callback")
-def auth_callback():
-    token = google.authorize_access_token()
-    user_info = token.get("userinfo")
-    email = user_info.get("email", "")
-
-    if not email.endswith(f"@{ALLOWED_DOMAIN}"):
-        return (
-            f'<h2 style="font-family:sans-serif;text-align:center;margin-top:80px">'
-            f'Access denied. Only @{ALLOWED_DOMAIN} accounts are allowed.</h2>'
-            f'<p style="text-align:center"><a href="/login">Back to login</a></p>'
-        ), 403
-
-    session["user"] = {
-        "email": email,
-        "name": user_info.get("name", email),
-        "picture": user_info.get("picture", ""),
-    }
-    return redirect(url_for("index"))
-
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login_page"))
-
-
 # ── App routes ─────────────────────────────────────────────────────────────────
 
 @app.route("/")
-@login_required
 def index():
     with open(os.path.join(app.static_folder, "index.html"), encoding="utf-8") as f:
         return f.read()
 
 
-@app.route("/me")
-def me():
-    user = session.get("user")
-    if not user:
-        return {}, 204
-    return user
-
-
 @app.route("/generate", methods=["POST"])
-@login_required
 def generate():
     body = request.get_json(force=True)
     input_type = body.get("type", "url")
@@ -249,7 +170,6 @@ def generate():
 
 
 @app.route("/download/docx", methods=["POST"])
-@login_required
 def download_docx():
     body    = request.get_json(force=True)
     content = body.get("content", "").strip()
