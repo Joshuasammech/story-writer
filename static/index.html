@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Story Writer Bot</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #f7f7f5;
+    --surface:  #ffffff;
+    --border:   #e5e5e2;
+    --text:     #1a1a18;
+    --muted:    #6b6b67;
+    --accent:   #2563eb;
+    --accent-h: #1d4ed8;
+    --thinking: #7c3aed;
+    --success:  #16a34a;
+    --error:    #dc2626;
+    --radius:   10px;
+    --shadow:   0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header .logo { font-size: 20px; }
+  header h1 { font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+  header .badge {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--accent);
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .user-area {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .user-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border);
+  }
+  .user-name {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .btn-logout {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .btn-logout:hover { background: var(--bg); color: var(--text); }
+
+  /* ── Main layout ── */
+  main {
+    flex: 1;
+    max-width: 860px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  /* ── Input card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+  }
+
+  .card h2 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 14px;
+    background: var(--bg);
+    border-radius: 7px;
+    padding: 3px;
+    width: fit-content;
+  }
+  .tab {
+    padding: 5px 14px;
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    transition: all .15s;
+  }
+  .tab.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 2px rgba(0,0,0,.1);
+  }
+
+  .input-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  input[type="text"], textarea {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+    transition: border-color .15s;
+    resize: vertical;
+  }
+  input[type="text"]:focus, textarea:focus {
+    border-color: var(--accent);
+    background: var(--surface);
+  }
+  textarea { min-height: 120px; }
+
+  .btn {
+    padding: 10px 20px;
+    border-radius: 7px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all .15s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { background: var(--accent-h); }
+  .btn-primary:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: var(--bg); color: var(--text); }
+
+  /* ── Status bar ── */
+  #status-bar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    padding: 10px 14px;
+    background: var(--bg);
+    border-radius: 7px;
+    border: 1px solid var(--border);
+  }
+  #status-bar.visible { display: flex; }
+  #status-bar.thinking { color: var(--thinking); border-color: #ddd6fe; background: #faf5ff; }
+  #status-bar.error    { color: var(--error);    border-color: #fecaca; background: #fef2f2; }
+  #status-bar.done     { color: var(--success);  border-color: #bbf7d0; background: #f0fdf4; }
+
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Thinking panel ── */
+  #thinking-panel {
+    display: none;
+    border: 1px solid #ddd6fe;
+    border-radius: var(--radius);
+    background: #faf5ff;
+    overflow: hidden;
+  }
+  #thinking-panel.visible { display: block; }
+  .thinking-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--thinking);
+  }
+  .thinking-header:hover { background: rgba(124,58,237,.05); }
+  .thinking-body {
+    display: none;
+    padding: 12px 16px 16px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #5b21b6;
+    white-space: pre-wrap;
+    max-height: 240px;
+    overflow-y: auto;
+    border-top: 1px solid #ddd6fe;
+    font-family: "SF Mono", "Fira Code", monospace;
+  }
+  .thinking-body.open { display: block; }
+
+  /* ── Output ── */
+  #output-card {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  #output-card.visible { display: block; }
+
+  .output-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .output-toolbar span {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .output-toolbar .actions { display: flex; gap: 8px; }
+
+  #output {
+    padding: 32px 40px;
+    font-size: 15px;
+    line-height: 1.75;
+    min-height: 200px;
+  }
+
+  /* ── Markdown styles ── */
+  #output h1 {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 6px;
+    letter-spacing: -.4px;
+  }
+  #output h2 {
+    font-size: 17px;
+    font-weight: 700;
+    margin-top: 36px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--border);
+    color: var(--text);
+  }
+  #output h2:first-of-type { margin-top: 24px; }
+  #output p { margin-bottom: 14px; }
+  #output ul, #output ol { padding-left: 22px; margin-bottom: 14px; }
+  #output li { margin-bottom: 4px; }
+  #output strong { font-weight: 700; }
+  #output em { font-style: italic; }
+  #output hr {
+    border: none;
+    border-top: 2px solid var(--border);
+    margin: 28px 0;
+  }
+  #output table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+    font-size: 14px;
+  }
+  #output th {
+    background: var(--bg);
+    font-weight: 700;
+    text-align: left;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--muted);
+  }
+  #output td {
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  #output tr:nth-child(even) td { background: var(--bg); }
+
+  /* ── Cursor blink ── */
+  .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: var(--accent);
+    margin-left: 1px;
+    vertical-align: text-bottom;
+    animation: blink .9s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">📖</span>
+  <h1>Story Writer Bot</h1>
+  <span class="badge">Powered by Claude Opus 4.6</span>
+  <div class="user-area" id="user-area"></div>
+</header>
+
+<main>
+  <!-- Input card -->
+  <div class="card">
+    <h2>Source Report</h2>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="url">Google Doc URL</button>
+      <button class="tab"        data-tab="text">Paste Text</button>
+    </div>
+
+    <div id="tab-url">
+      <div class="input-row">
+        <input type="text" id="doc-url"
+          placeholder="https://docs.google.com/document/d/…"
+          autocomplete="off" spellcheck="false"/>
+        <button class="btn btn-primary" id="generate-btn" onclick="generate()">
+          <span>Generate</span>
+        </button>
+      </div>
+      <p style="margin-top:10px;font-size:12px;color:var(--muted)">
+        The doc must be set to <strong>Anyone with the link can view</strong>
+        (Share → Change to Anyone with the link). No login required.
+      </p>
+    </div>
+
+    <div id="tab-text" style="display:none">
+      <div class="input-row" style="flex-direction:column;">
+        <textarea id="doc-text" placeholder="Paste your report text here…"></textarea>
+        <button class="btn btn-primary" id="generate-btn-text"
+          onclick="generate()" style="align-self:flex-end">
+          <span>Generate</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div id="status-bar">
+    <span class="spinner" id="spinner"></span>
+    <span id="status-text">Ready</span>
+  </div>
+
+  <!-- Thinking panel -->
+  <div id="thinking-panel">
+    <div class="thinking-header" onclick="toggleThinking()">
+      <span>🧠 Claude's reasoning</span>
+      <span id="thinking-toggle">▸ Show</span>
+    </div>
+    <pre class="thinking-body" id="thinking-content"></pre>
+  </div>
+
+  <!-- Output -->
+  <div id="output-card">
+    <div class="output-toolbar">
+      <span>Case Report</span>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="copyOutput()">Copy</button>
+        <button class="btn btn-ghost" onclick="downloadMd()">↓ Markdown</button>
+        <button class="btn btn-ghost" onclick="downloadPdf()">↓ PDF</button>
+        <button class="btn btn-ghost" onclick="downloadDocx()">↓ Word</button>
+      </div>
+    </div>
+    <div id="output">
+      <div class="empty-state">
+        <div class="icon">✍️</div>
+        <p>Your case report will appear here.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  // ── Tab switching ────────────────────────────────────────────────────────────
+  let activeTab = 'url';
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeTab = btn.dataset.tab;
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-url').style.display  = activeTab === 'url'  ? '' : 'none';
+      document.getElementById('tab-text').style.display = activeTab === 'text' ? '' : 'none';
+    });
+  });
+
+  // ── Thinking panel ───────────────────────────────────────────────────────────
+  function toggleThinking() {
+    const body    = document.getElementById('thinking-content');
+    const toggle  = document.getElementById('thinking-toggle');
+    const isOpen  = body.classList.toggle('open');
+    toggle.textContent = isOpen ? '▾ Hide' : '▸ Show';
+  }
+
+  // ── State ────────────────────────────────────────────────────────────────────
+  let rawMarkdown = '';
+  let cursorEl    = null;
+  let isGenerating = false;
+
+  function setStatus(msg, cls = '') {
+    const bar  = document.getElementById('status-bar');
+    const text = document.getElementById('status-text');
+    const spin = document.getElementById('spinner');
+    bar.className = 'visible ' + cls;
+    text.textContent = msg;
+    spin.style.display = (cls === 'done' || cls === 'error') ? 'none' : '';
+  }
+
+  function setGenerating(on) {
+    isGenerating = on;
+    ['generate-btn', 'generate-btn-text'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = on;
+    });
+  }
+
+  // ── Main generate ────────────────────────────────────────────────────────────
+  async function generate() {
+    if (isGenerating) return;
+
+    const isUrl   = activeTab === 'url';
+    const content = isUrl
+      ? document.getElementById('doc-url').value.trim()
+      : document.getElementById('doc-text').value.trim();
+
+    if (!content) {
+      setStatus(isUrl ? 'Please enter a Google Doc URL.' : 'Please paste some text.', 'error');
+      document.getElementById('status-bar').classList.add('visible');
+      return;
+    }
+
+    // Reset UI
+    rawMarkdown = '';
+    document.getElementById('thinking-content').textContent = '';
+    document.getElementById('thinking-panel').classList.remove('visible');
+    document.getElementById('output-card').classList.add('visible');
+    document.getElementById('output').innerHTML = '';
+    setGenerating(true);
+    setStatus('Starting…');
+
+    try {
+      const resp = await fetch('/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: isUrl ? 'url' : 'text', content }),
+      });
+
+      const reader  = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let   buffer  = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop();
+
+        for (const part of parts) {
+          handleSSE(part);
+        }
+      }
+    } catch (e) {
+      setStatus('Network error: ' + e.message, 'error');
+      setGenerating(false);
+    }
+  }
+
+  // ── SSE parser ───────────────────────────────────────────────────────────────
+  function handleSSE(raw) {
+    const lines  = raw.split('\n');
+    let eventName = '';
+    let dataStr   = '';
+
+    for (const line of lines) {
+      if (line.startsWith('event: ')) eventName = line.slice(7).trim();
+      if (line.startsWith('data: '))  dataStr   = line.slice(6).trim();
+    }
+    if (!eventName) return;
+
+    let payload = '';
+    try { payload = JSON.parse(dataStr).data; } catch { payload = dataStr; }
+
+    switch (eventName) {
+      case 'status':
+        setStatus(payload);
+        break;
+
+      case 'thinking_start':
+        document.getElementById('thinking-panel').classList.add('visible');
+        setStatus('Claude is thinking…', 'thinking');
+        break;
+
+      case 'thinking':
+        document.getElementById('thinking-content').textContent += payload;
+        break;
+
+      case 'writing_start':
+        setStatus('Writing case report…');
+        addCursor();
+        break;
+
+      case 'token':
+        rawMarkdown += payload;
+        renderMarkdown();
+        break;
+
+      case 'done':
+        removeCursor();
+        setStatus('Done!', 'done');
+        setGenerating(false);
+        break;
+
+      case 'error':
+        removeCursor();
+        setStatus('Error: ' + payload, 'error');
+        setGenerating(false);
+        document.getElementById('output').innerHTML =
+          `<p style="color:var(--error);padding:20px">${escHtml(payload)}</p>`;
+        break;
+    }
+  }
+
+  // ── Markdown rendering ───────────────────────────────────────────────────────
+  function renderMarkdown() {
+    const out = document.getElementById('output');
+    out.innerHTML = marked.parse(rawMarkdown);
+    // Re-attach cursor at end
+    if (cursorEl) {
+      cursorEl = document.createElement('span');
+      cursorEl.className = 'cursor';
+      out.appendChild(cursorEl);
+    }
+    // Auto-scroll only if near bottom
+    const isNearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 200;
+    if (isNearBottom) window.scrollTo({ top: document.body.scrollHeight });
+  }
+
+  function addCursor() {
+    const out = document.getElementById('output');
+    cursorEl  = document.createElement('span');
+    cursorEl.className = 'cursor';
+    out.appendChild(cursorEl);
+  }
+
+  function removeCursor() {
+    if (cursorEl) { cursorEl.remove(); cursorEl = null; }
+  }
+
+  // ── Copy / Download ──────────────────────────────────────────────────────────
+  function copyOutput() {
+    navigator.clipboard.writeText(rawMarkdown).then(() => {
+      const btn = document.querySelector('.output-toolbar .actions .btn-ghost');
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = orig, 1500);
+    });
+  }
+
+  function downloadMd() {
+    const blob = new Blob([rawMarkdown], { type: 'text/markdown' });
+    Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob), download: 'story.md',
+    }).click();
+  }
+
+  function downloadPdf() {
+    const el = document.getElementById('output');
+    html2pdf().set({
+      margin: [15, 20],
+      filename: 'story.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    }).from(el).save();
+  }
+
+  async function downloadDocx() {
+    const resp = await fetch('/download/docx', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: rawMarkdown }),
+    });
+    if (!resp.ok) { alert('Failed to generate Word document.'); return; }
+    const blob = await resp.blob();
+    Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob), download: 'story.docx',
+    }).click();
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Enter key on URL input
+  document.getElementById('doc-url').addEventListener('keydown', e => {
+    if (e.key === 'Enter') generate();
+  });
+
+  // Load user info
+  fetch('/me').then(r => r.json()).then(user => {
+    const area = document.getElementById('user-area');
+    area.innerHTML = `
+      ${user.picture ? `<img class="user-avatar" src="${user.picture}" alt="">` : ''}
+      <span class="user-name">${user.name || user.email}</span>
+      <a class="btn-logout" href="/logout">Sign out</a>
+    `;
+  }).catch(() => {});
+
+</script>
+</body>
+</html>
