@@ -150,17 +150,37 @@ def _safe_get(url: str) -> requests.Response:
         raise RuntimeError("Google request timed out. Try again.")
 
 
+def _google_api_key() -> str:
+    return os.environ.get("GOOGLE_API_KEY", "").strip()
+
+
 def fetch_google_sheet(url_or_id: str) -> tuple[str, str]:
     """Fetch a Google Sheet as CSV and return (title, formatted_text)."""
     sheet_id = extract_doc_id(url_or_id)
-    # Preserve gid (tab) if present in the URL
-    gid_match = re.search(r"[#&?]gid=(\d+)", url_or_id)
-    gid_param = f"&gid={gid_match.group(1)}" if gid_match else ""
-    export_url = (
-        f"https://docs.google.com/spreadsheets/d/{sheet_id}"
-        f"/export?format=csv{gid_param}"
-    )
-    resp = _safe_get(export_url)
+    api_key = _google_api_key()
+
+    if api_key:
+        # Use Drive API v3 — works from server environments
+        api_url = (
+            f"https://www.googleapis.com/drive/v3/files/{sheet_id}/export"
+            f"?mimeType=text/csv&key={api_key}"
+        )
+        try:
+            resp = requests.get(api_url, timeout=30)
+        except requests.exceptions.Timeout:
+            raise RuntimeError("Google request timed out. Try again.")
+        except requests.exceptions.ConnectionError:
+            raise RuntimeError("Could not reach Google. Check your internet connection.")
+    else:
+        # Fallback: direct export URL (may be blocked on some servers)
+        gid_match = re.search(r"[#&?]gid=(\d+)", url_or_id)
+        gid_param = f"&gid={gid_match.group(1)}" if gid_match else ""
+        export_url = (
+            f"https://docs.google.com/spreadsheets/d/{sheet_id}"
+            f"/export?format=csv{gid_param}"
+        )
+        resp = _safe_get(export_url)
+
     if resp.status_code == 403:
         raise RuntimeError(
             'Sheet access denied. Share it as "Anyone with the link can view".'
@@ -186,8 +206,25 @@ def fetch_google_sheet(url_or_id: str) -> tuple[str, str]:
 
 def fetch_google_doc(url_or_id: str) -> tuple[str, str]:
     doc_id = extract_doc_id(url_or_id)
-    export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
-    resp = _safe_get(export_url)
+    api_key = _google_api_key()
+
+    if api_key:
+        # Use Drive API v3 — works from server environments
+        api_url = (
+            f"https://www.googleapis.com/drive/v3/files/{doc_id}/export"
+            f"?mimeType=text/plain&key={api_key}"
+        )
+        try:
+            resp = requests.get(api_url, timeout=30)
+        except requests.exceptions.Timeout:
+            raise RuntimeError("Google request timed out. Try again.")
+        except requests.exceptions.ConnectionError:
+            raise RuntimeError("Could not reach Google. Check your internet connection.")
+    else:
+        # Fallback: direct export URL (may be blocked on some servers)
+        export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
+        resp = _safe_get(export_url)
+
     if resp.status_code == 403:
         raise RuntimeError(
             'Access denied. Share the doc as "Anyone with the link can view".'
