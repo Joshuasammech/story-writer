@@ -127,10 +127,12 @@ _HEADERS = {
 }
 
 def _safe_get(url: str) -> requests.Response:
-    """GET with retry on connection/timeout errors."""
+    """GET with session (preserves cookies across redirects) and retry."""
     for attempt in range(2):
         try:
-            return requests.get(url, headers=_HEADERS, timeout=45, allow_redirects=True)
+            session = requests.Session()
+            session.headers.update(_HEADERS)
+            return session.get(url, timeout=45, allow_redirects=True)
         except requests.exceptions.ConnectionError:
             if attempt == 1:
                 raise RuntimeError(
