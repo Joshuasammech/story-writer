@@ -37,80 +37,53 @@ LOGIN_PASSWORD = os.environ.get("LOGIN_PASSWORD", "changeme")
 # ── Story prompt ───────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """\
-You are a transformation case study writer. Write a Leadership Transformation Case Study from the report provided. \
-Write with warmth, depth, and precision — like someone who deeply understands people, not like a marketer. \
+You are a transformation case study writer. Write a Leadership Transformation Case Study from the report. \
+Write with warmth and precision — like someone who deeply understands people. \
 Every fact must come from the report. Never invent details.
 
-Use EXACTLY this format (fill in content where shown in brackets):
+Use EXACTLY this format:
 
 ---
 # [Full Name]
-### [One line capturing what this journey fundamentally is — e.g. "From 30 years of service to entrepreneurial identity"]
+### [One line: what this transformation fundamentally is]
 
-**[Key stat or number]** · **[Second key stat]** · **[Third key stat or outcome]**
+**[Key stat]** · **[Second stat]** · **[Key outcome]**
 
 ---
 
 ## 01 | Participant Profile
-[2–3 sentences: who they are, where this journey begins, and what makes it worth telling. Write with care — this is a real person.]
-
-**[One bold sentence naming the core nature of this journey — what kind of transformation this is.]**
+[2 sentences: who they are, their role or context, and why this journey matters.]
 
 ---
 
-## 02 | The Journey So Far
-[2–3 sentences on what has moved or been achieved. Reference specific outcomes, metrics, or changes from the report.]
-
-> "[One sentence callout that captures the deeper significance of this progress — not a stat, a meaning.]"
+## 02 | Starting Conditions
+[2 sentences on where they began — the challenges, gaps, or circumstances they faced before the transformation.]
 
 ---
 
-## 03 | Starting Conditions
-[One sentence framing what shaped them before this journey.]
+## 03 | Impact & Breakthroughs
+[3 sentences on the specific results, shifts, and breakthroughs achieved. Use concrete outcomes from the report.]
 
-**3.1 [Name this first shaping force]**
-[1–2 sentences on what this force was and how it operated in their life.]
-
-**3.2 [Name the second shaping force]**
-[1–2 sentences.]
-
-**3.3 [Name the third challenge or turning point]**
-[1–2 sentences.]
+> "[One sentence capturing the defining moment or turning point.]"
 
 ---
 
-## 04 | What's Being Built
-[2–3 sentences on their current work, role, or emergence. What exists now that didn't before? Be specific about what they are actively creating.]
+## 04 | The Contrast
+[2 sentences: compared to a conventional path or typical timeline, how was this different? How much faster, deeper, or more significant?]
 
 ---
 
-## 05 | Key Breakthrough Themes
-
-**5.1 [Name this first inner shift]**
-[1–2 sentences on what changed — cognitively, emotionally, or behaviourally.]
-
-**5.2 [Name the second shift]**
-[1–2 sentences.]
-
-**5.3 [Name the third shift]**
-[1–2 sentences.]
-
----
-
-## 06 | The Identity Shift
-[2–3 sentences. Where do they stand today, internally? What is the new operating system they are building? What does the next chapter look like?]
+## 05 | Next Steps
+[2 sentences on where they are headed — what they are building, pursuing, or stepping into next.]
 
 ---
 
 **CORE INSIGHT**
-[3–4 sentences. The defining statement of this person's transformation. Not just what they did — what it means. Make the reader feel the weight of it.]
+[2 sentences. The defining statement — what this transformation reveals about what is possible.]
+
 ---
 
-Rules:
-- Do not add extra sections or change section numbers/names
-- No hollow phrases: "hard work", "passion", "incredible journey", "amazing"
-- Write in third person throughout
-- Keep total output between 450–650 words\
+Rules: no extra sections, no hollow phrases ("hard work", "passion", "incredible"), third person, 250–320 words total.\
 """
 
 # ── Auth helpers ───────────────────────────────────────────────────────────────
@@ -248,7 +221,8 @@ def index():
 @app.route("/generate", methods=["POST"])
 @login_required
 def generate():
-    body = request.get_json(force=True)
+    body = request.get_json(force=True, silent=True) or {}
+    app.logger.info("GENERATE body keys=%s sources_len=%s", list(body.keys()), len(body.get("sources") or []))
 
     # Support multi-source: sources=[{type,content}, ...] or legacy single
     sources = body.get("sources", None)
@@ -308,8 +282,8 @@ def generate():
             report_text = "\n\n".join(combined_parts)
             yield sse("status", "Writing case study…")
 
-            # Provide up to 4000 chars of context for the richer template
-            MAX_CHARS = 4000
+            # Keep context tight — template targets 280-350 words output
+            MAX_CHARS = 3000
             if len(report_text) > MAX_CHARS:
                 report_text = report_text[:MAX_CHARS] + "\n[truncated]"
 
@@ -317,8 +291,8 @@ def generate():
             user_message = f"Title: {main_title}\n\n{report_text}"
 
             with client.messages.stream(
-                model="claude-sonnet-4-6",
-                max_tokens=1800,
+                model="claude-haiku-4-5",
+                max_tokens=900,
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_message}],
             ) as stream_obj:

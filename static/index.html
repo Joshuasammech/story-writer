@@ -650,7 +650,7 @@
 
       function markDone() {
         removeCursor();
-        statusEl.style.display = 'none';
+        showBody();
         actionsEl.style.display = '';
         // Store markdown on element for download
         bodyEl.dataset.markdown = markdown;
@@ -673,13 +673,29 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sources }),
       }).then(resp => {
+        if (!resp.ok) {
+          resp.json().catch(() => ({})).then(err => {
+            markError(err.error || `Server error ${resp.status}`);
+          });
+          return;
+        }
         const reader  = resp.body.getReader();
         const decoder = new TextDecoder();
         let   buffer  = '';
 
         function pump() {
           reader.read().then(({ done, value }) => {
-            if (done) { resolve(); return; }
+            if (done) {
+              // Stream closed — finalize card regardless of whether 'done' SSE arrived
+              if (markdown) {
+                removeCursor(); showBody();
+                actionsEl.style.display = '';
+                bodyEl.dataset.markdown = markdown;
+              } else {
+                markError('Server closed the connection without a response.');
+              }
+              resolve(); return;
+            }
 
             buffer += decoder.decode(value, { stream: true });
             const parts = buffer.split('\n\n');
@@ -701,6 +717,7 @@
                 case 'status':       updateStatus(payload); break;
                 case 'writing_start': addCursor(); break;
                 case 'token':
+                  if (!markdown) showBody();
                   markdown += payload;
                   render();
                   break;
