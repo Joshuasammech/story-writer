@@ -293,11 +293,11 @@ def generate():
             if len(report_text) > MAX_CHARS:
                 report_text = report_text[:MAX_CHARS] + "\n[truncated]"
 
-            client = anthropic.Anthropic()
+            client = anthropic.Anthropic(timeout=60.0)
             user_message = f"Title: {main_title}\n\n{report_text}"
 
             with client.messages.stream(
-                model="claude-haiku-4-5",
+                model="claude-haiku-4-5-20251001",
                 max_tokens=900,
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_message}],
