@@ -154,6 +154,26 @@ def _google_api_key() -> str:
     return os.environ.get("GOOGLE_API_KEY", "").strip()
 
 
+def _get_service_account_token() -> str | None:
+    """Get a short-lived OAuth2 bearer token from service account credentials."""
+    sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
+    if not sa_json:
+        return None
+    try:
+        from google.oauth2 import service_account
+        from google.auth.transport.requests import Request as GoogleRequest
+        sa_info = json.loads(sa_json)
+        creds = service_account.Credentials.from_service_account_info(
+            sa_info,
+            scopes=["https://www.googleapis.com/auth/documents.readonly"],
+        )
+        creds.refresh(GoogleRequest())
+        return creds.token
+    except Exception as e:
+        print(f"[service_account] error getting token: {e}", flush=True)
+        return None
+
+
 _PASTE_TEXT_MSG = (
     "Unable to reach Google from the server. "
     "Please copy the text from your Doc/Sheet and use the 'Paste Text' tab instead."
@@ -229,24 +249,27 @@ def _docs_api_to_text(doc_json: dict) -> str:
 
 def fetch_google_doc(url_or_id: str) -> tuple[str, str]:
     doc_id = extract_doc_id(url_or_id)
-    api_key = _google_api_key()
 
-    # Try Docs API v1 — returns JSON directly, no googleusercontent.com redirect
-    if api_key:
-        api_url = f"https://docs.googleapis.com/v1/documents/{doc_id}?key={api_key}"
+    # Try Docs API v1 with service account OAuth2 (works from cloud hosts)
+    token = _get_service_account_token()
+    if token:
+        api_url = f"https://docs.googleapis.com/v1/documents/{doc_id}"
         try:
-            resp = requests.get(api_url, timeout=15, headers=_HEADERS)
-            print(f"[docs_api] {doc_id} → {resp.status_code}", flush=True)
+            resp = requests.get(
+                api_url, timeout=15,
+                headers={**_HEADERS, "Authorization": f"Bearer {token}"},
+            )
+            print(f"[docs_api_sa] {doc_id} → {resp.status_code}", flush=True)
             if resp.ok:
                 doc_json = resp.json()
                 title = doc_json.get("title", "Untitled Document")
                 text = _docs_api_to_text(doc_json)
                 if text.strip():
                     return title, text
-            elif resp.status_code not in (403, 429):
-                print(f"[docs_api] unexpected {resp.status_code}: {resp.text[:200]}", flush=True)
+            else:
+                print(f"[docs_api_sa] error {resp.status_code}: {resp.text[:200]}", flush=True)
         except Exception as e:
-            print(f"[docs_api] error: {e}", flush=True)
+            print(f"[docs_api_sa] error: {e}", flush=True)
 
     # Fallback: export URL (redirects to googleusercontent.com — may be slow)
     export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
