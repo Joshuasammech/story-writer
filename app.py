@@ -154,32 +154,40 @@ def _google_api_key() -> str:
     return os.environ.get("GOOGLE_API_KEY", "").strip()
 
 
+_PASTE_TEXT_MSG = (
+    "Unable to reach Google from the server. "
+    "Please copy the text from your Doc/Sheet and use the 'Paste Text' tab instead."
+)
+
+
+def _jina_get(google_url: str) -> requests.Response:
+    """Fetch a Google URL via Jina AI Reader, which bypasses server-side IP blocks."""
+    jina_url = f"https://r.jina.ai/{google_url}"
+    app.logger.info("_jina_get → %s", jina_url[:120])
+    resp = requests.get(
+        jina_url,
+        timeout=30,
+        headers={"Accept": "text/plain", "X-Return-Format": "text"},
+    )
+    app.logger.info("_jina_get status=%s len=%s", resp.status_code, len(resp.content))
+    return resp
+
+
 def fetch_google_sheet(url_or_id: str) -> tuple[str, str]:
     """Fetch a Google Sheet as CSV and return (title, formatted_text)."""
     sheet_id = extract_doc_id(url_or_id)
-    api_key = _google_api_key()
-
-    if api_key:
-        # Use Drive API v3 — works from server environments
-        api_url = (
-            f"https://www.googleapis.com/drive/v3/files/{sheet_id}/export"
-            f"?mimeType=text/csv&key={api_key}"
-        )
-        try:
-            resp = requests.get(api_url, timeout=30)
-        except requests.exceptions.Timeout:
-            raise RuntimeError("Google request timed out. Try again.")
-        except requests.exceptions.ConnectionError:
-            raise RuntimeError("Could not reach Google. Check your internet connection.")
-    else:
-        # Fallback: direct export URL (may be blocked on some servers)
-        gid_match = re.search(r"[#&?]gid=(\d+)", url_or_id)
-        gid_param = f"&gid={gid_match.group(1)}" if gid_match else ""
-        export_url = (
-            f"https://docs.google.com/spreadsheets/d/{sheet_id}"
-            f"/export?format=csv{gid_param}"
-        )
-        resp = _safe_get(export_url)
+    gid_match = re.search(r"[#&?]gid=(\d+)", url_or_id)
+    gid_param = f"&gid={gid_match.group(1)}" if gid_match else ""
+    export_url = (
+        f"https://docs.google.com/spreadsheets/d/{sheet_id}"
+        f"/export?format=csv{gid_param}"
+    )
+    try:
+        resp = _jina_get(export_url)
+    except requests.exceptions.Timeout:
+        raise RuntimeError(_PASTE_TEXT_MSG)
+    except requests.exceptions.ConnectionError:
+        raise RuntimeError(_PASTE_TEXT_MSG)
 
     if resp.status_code == 403:
         raise RuntimeError(
@@ -190,7 +198,7 @@ def fetch_google_sheet(url_or_id: str) -> tuple[str, str]:
     if not resp.ok:
         raise RuntimeError(f"Failed to fetch sheet (HTTP {resp.status_code}).")
 
-    # Convert CSV → readable text table
+    # Jina returns text — parse as CSV
     lines = []
     reader = csv.reader(resp.text.splitlines())
     rows = list(reader)
@@ -206,24 +214,13 @@ def fetch_google_sheet(url_or_id: str) -> tuple[str, str]:
 
 def fetch_google_doc(url_or_id: str) -> tuple[str, str]:
     doc_id = extract_doc_id(url_or_id)
-    api_key = _google_api_key()
-
-    if api_key:
-        # Use Drive API v3 — works from server environments
-        api_url = (
-            f"https://www.googleapis.com/drive/v3/files/{doc_id}/export"
-            f"?mimeType=text/plain&key={api_key}"
-        )
-        try:
-            resp = requests.get(api_url, timeout=30)
-        except requests.exceptions.Timeout:
-            raise RuntimeError("Google request timed out. Try again.")
-        except requests.exceptions.ConnectionError:
-            raise RuntimeError("Could not reach Google. Check your internet connection.")
-    else:
-        # Fallback: direct export URL (may be blocked on some servers)
-        export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
-        resp = _safe_get(export_url)
+    export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
+    try:
+        resp = _jina_get(export_url)
+    except requests.exceptions.Timeout:
+        raise RuntimeError(_PASTE_TEXT_MSG)
+    except requests.exceptions.ConnectionError:
+        raise RuntimeError(_PASTE_TEXT_MSG)
 
     if resp.status_code == 403:
         raise RuntimeError(
