@@ -34,6 +34,12 @@ app.secret_key = os.environ.get("SECRET_KEY", os.urandom(32))
 LOGIN_USERNAME = os.environ.get("LOGIN_USERNAME", "admin")
 LOGIN_PASSWORD = os.environ.get("LOGIN_PASSWORD", "changeme")
 
+_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+if _api_key:
+    print(f"[startup] ANTHROPIC_API_KEY loaded ({len(_api_key)} chars, starts with {_api_key[:12]}…)")
+else:
+    print("[startup] WARNING: ANTHROPIC_API_KEY is NOT set — story generation will fail")
+
 # ── Story prompt ───────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """\
