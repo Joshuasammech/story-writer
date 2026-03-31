@@ -308,8 +308,12 @@ def generate():
 
             yield sse("done", "")
 
+        except anthropic.APIConnectionError:
+            yield sse("error", "Cannot reach the AI API. Check that ANTHROPIC_API_KEY is set in Railway environment variables.")
+        except anthropic.AuthenticationError:
+            yield sse("error", "Invalid API key. Set ANTHROPIC_API_KEY in Railway environment variables.")
         except Exception as e:
-            yield sse("error", str(e))
+            yield sse("error", f"{type(e).__name__}: {e}")
 
     return Response(
         stream_with_context(stream()),
