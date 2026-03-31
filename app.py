@@ -160,17 +160,21 @@ _PASTE_TEXT_MSG = (
 )
 
 
-def _jina_get(google_url: str) -> requests.Response:
-    """Fetch a Google URL via Jina AI Reader, which bypasses server-side IP blocks."""
-    jina_url = f"https://r.jina.ai/{google_url}"
-    app.logger.info("_jina_get → %s", jina_url[:120])
-    resp = requests.get(
-        jina_url,
-        timeout=30,
-        headers={"Accept": "text/plain", "X-Return-Format": "text"},
-    )
-    app.logger.info("_jina_get status=%s len=%s", resp.status_code, len(resp.content))
-    return resp
+def _google_fetch(url: str) -> requests.Response:
+    """Simple Google fetch with browser headers and redirect following."""
+    try:
+        resp = requests.get(
+            url,
+            timeout=30,
+            allow_redirects=True,
+            headers=_HEADERS,
+        )
+        print(f"[google_fetch] {url[:80]} → {resp.status_code} ({len(resp.content)} bytes)", flush=True)
+        return resp
+    except requests.exceptions.Timeout:
+        raise RuntimeError("Google request timed out. Try again.")
+    except requests.exceptions.ConnectionError as e:
+        raise RuntimeError(f"Could not reach Google: {e}")
 
 
 def fetch_google_sheet(url_or_id: str) -> tuple[str, str]:
@@ -182,12 +186,7 @@ def fetch_google_sheet(url_or_id: str) -> tuple[str, str]:
         f"https://docs.google.com/spreadsheets/d/{sheet_id}"
         f"/export?format=csv{gid_param}"
     )
-    try:
-        resp = _jina_get(export_url)
-    except requests.exceptions.Timeout:
-        raise RuntimeError(_PASTE_TEXT_MSG)
-    except requests.exceptions.ConnectionError:
-        raise RuntimeError(_PASTE_TEXT_MSG)
+    resp = _google_fetch(export_url)
 
     if resp.status_code == 403:
         raise RuntimeError(
@@ -198,7 +197,6 @@ def fetch_google_sheet(url_or_id: str) -> tuple[str, str]:
     if not resp.ok:
         raise RuntimeError(f"Failed to fetch sheet (HTTP {resp.status_code}).")
 
-    # Jina returns text — parse as CSV
     lines = []
     reader = csv.reader(resp.text.splitlines())
     rows = list(reader)
@@ -212,15 +210,47 @@ def fetch_google_sheet(url_or_id: str) -> tuple[str, str]:
     return title, "\n".join(lines)
 
 
+def _docs_api_to_text(doc_json: dict) -> str:
+    """Extract plain text from Google Docs API v1 JSON response."""
+    lines = []
+    for element in doc_json.get("body", {}).get("content", []):
+        para = element.get("paragraph")
+        if para:
+            parts = []
+            for pe in para.get("elements", []):
+                tr = pe.get("textRun")
+                if tr:
+                    parts.append(tr.get("content", ""))
+            line = "".join(parts)
+            if line.strip():
+                lines.append(line.rstrip("\n"))
+    return "\n".join(lines)
+
+
 def fetch_google_doc(url_or_id: str) -> tuple[str, str]:
     doc_id = extract_doc_id(url_or_id)
+    api_key = _google_api_key()
+
+    # Try Docs API v1 — returns JSON directly, no googleusercontent.com redirect
+    if api_key:
+        api_url = f"https://docs.googleapis.com/v1/documents/{doc_id}?key={api_key}"
+        try:
+            resp = requests.get(api_url, timeout=15, headers=_HEADERS)
+            print(f"[docs_api] {doc_id} → {resp.status_code}", flush=True)
+            if resp.ok:
+                doc_json = resp.json()
+                title = doc_json.get("title", "Untitled Document")
+                text = _docs_api_to_text(doc_json)
+                if text.strip():
+                    return title, text
+            elif resp.status_code not in (403, 429):
+                print(f"[docs_api] unexpected {resp.status_code}: {resp.text[:200]}", flush=True)
+        except Exception as e:
+            print(f"[docs_api] error: {e}", flush=True)
+
+    # Fallback: export URL (redirects to googleusercontent.com — may be slow)
     export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
-    try:
-        resp = _jina_get(export_url)
-    except requests.exceptions.Timeout:
-        raise RuntimeError(_PASTE_TEXT_MSG)
-    except requests.exceptions.ConnectionError:
-        raise RuntimeError(_PASTE_TEXT_MSG)
+    resp = _google_fetch(export_url)
 
     if resp.status_code == 403:
         raise RuntimeError(
@@ -242,6 +272,36 @@ def sse(event: str, data: str) -> str:
 
 
 # ── Auth routes ────────────────────────────────────────────────────────────────
+
+@app.route("/ping")
+@login_required
+def ping():
+    """Diagnostic: test outbound connectivity from Railway."""
+    import time
+    results = {}
+    targets = {
+        "google_export": "https://docs.google.com/document/d/1/export?format=txt",
+        "googleapis": "https://www.googleapis.com/",
+        "docs_googleapis": "https://docs.googleapis.com/",
+        "googleusercontent": "https://googleusercontent.com/",
+        "jina": "https://r.jina.ai/",
+        "allorigins": "https://api.allorigins.win/",
+        "httpbin": "https://httpbin.org/get",
+        "anthropic": "https://api.anthropic.com/",
+    }
+    for name, url in targets.items():
+        t0 = time.time()
+        try:
+            r = requests.get(url, timeout=8, allow_redirects=False)
+            results[name] = f"HTTP {r.status_code} in {time.time()-t0:.1f}s"
+        except requests.exceptions.Timeout:
+            results[name] = f"TIMEOUT after {time.time()-t0:.1f}s"
+        except requests.exceptions.ConnectionError as e:
+            results[name] = f"CONNECTION ERROR in {time.time()-t0:.1f}s: {str(e)[:80]}"
+        except Exception as e:
+            results[name] = f"ERROR: {type(e).__name__}: {str(e)[:80]}"
+    return results
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login_page():
