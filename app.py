@@ -118,11 +118,19 @@ def extract_doc_id(url_or_id: str) -> str:
     return match.group(1) if match else url_or_id.strip()
 
 
+_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/122.0.0.0 Safari/537.36"
+    )
+}
+
 def _safe_get(url: str) -> requests.Response:
     """GET with retry on connection/timeout errors."""
     for attempt in range(2):
         try:
-            return requests.get(url, timeout=45)
+            return requests.get(url, headers=_HEADERS, timeout=45, allow_redirects=True)
         except requests.exceptions.ConnectionError:
             if attempt == 1:
                 raise RuntimeError(
