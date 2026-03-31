@@ -127,20 +127,27 @@ _HEADERS = {
 }
 
 def _safe_get(url: str) -> requests.Response:
-    """GET with session (preserves cookies across redirects) and retry."""
-    for attempt in range(2):
-        try:
-            session = requests.Session()
-            session.headers.update(_HEADERS)
-            return session.get(url, timeout=45, allow_redirects=True)
-        except requests.exceptions.ConnectionError:
-            if attempt == 1:
-                raise RuntimeError(
-                    "Could not reach Google. Check your internet connection or try again."
-                )
-        except requests.exceptions.Timeout:
-            if attempt == 1:
-                raise RuntimeError("Google request timed out. Try again.")
+    """GET with manual redirect following to preserve cookies across domains."""
+    session = requests.Session()
+    session.headers.update(_HEADERS)
+    try:
+        # Step 1: get initial response without auto-redirect
+        r1 = session.get(url, timeout=30, allow_redirects=False)
+        app.logger.info("_safe_get %s → status=%s", url[:80], r1.status_code)
+
+        # Step 2: if redirected, follow manually (preserves cookies)
+        if r1.status_code in (301, 302, 303, 307, 308) and "Location" in r1.headers:
+            redirect_url = r1.headers["Location"]
+            app.logger.info("_safe_get redirect → %s", redirect_url[:80])
+            r2 = session.get(redirect_url, timeout=30, allow_redirects=True)
+            app.logger.info("_safe_get final status=%s len=%s", r2.status_code, len(r2.content))
+            return r2
+
+        return r1
+    except requests.exceptions.ConnectionError:
+        raise RuntimeError("Could not reach Google. Check your internet connection or try again.")
+    except requests.exceptions.Timeout:
+        raise RuntimeError("Google request timed out. Try again.")
 
 
 def fetch_google_sheet(url_or_id: str) -> tuple[str, str]:
