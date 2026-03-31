@@ -114,12 +114,22 @@
     box-shadow: 0 1px 2px rgba(0,0,0,.1);
   }
 
-  /* URL list */
+  /* URL groups */
   #url-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     margin-bottom: 12px;
+  }
+
+  .url-group {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
 
   .url-row {
@@ -132,11 +142,11 @@
     flex: 1;
     border: 1px solid var(--border);
     border-radius: 7px;
-    padding: 10px 14px;
+    padding: 9px 12px;
     font-size: 14px;
     font-family: inherit;
     color: var(--text);
-    background: var(--bg);
+    background: var(--surface);
     outline: none;
     transition: border-color .15s;
   }
@@ -144,16 +154,25 @@
     border-color: var(--accent);
     background: var(--surface);
   }
+  .url-row .url-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    white-space: nowrap;
+    min-width: 34px;
+  }
 
   .remove-url-btn {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border: 1px solid var(--border);
     border-radius: 6px;
     background: transparent;
     color: var(--muted);
     cursor: pointer;
-    font-size: 16px;
+    font-size: 15px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -161,6 +180,39 @@
     transition: all .15s;
   }
   .remove-url-btn:hover { background: #fef2f2; color: var(--error); border-color: #fecaca; }
+
+  .group-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 2px;
+  }
+
+  .add-sheet-btn {
+    font-size: 12px;
+    font-weight: 500;
+    color: #059669;
+    background: transparent;
+    border: 1px dashed #6ee7b7;
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .add-sheet-btn:hover { background: #f0fdf4; }
+
+  .remove-group-btn {
+    font-size: 12px;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: all .15s;
+  }
+  .remove-group-btn:hover { color: var(--error); }
 
   .url-actions {
     display: flex;
@@ -381,21 +433,27 @@
 
     <div id="tab-url">
       <div id="url-list">
-        <div class="url-row">
-          <input type="text" class="doc-url"
-            placeholder="https://docs.google.com/document/d/…"
-            autocomplete="off" spellcheck="false"/>
+        <div class="url-group">
+          <div class="url-row">
+            <span class="url-label">Doc</span>
+            <input type="text" class="doc-url primary"
+              placeholder="https://docs.google.com/document/d/…"
+              autocomplete="off" spellcheck="false"/>
+          </div>
+          <div class="group-footer">
+            <button class="add-sheet-btn" onclick="addSheetRow(this)">+ Add Sheet URL</button>
+          </div>
         </div>
       </div>
-      <div class="url-actions">
-        <button class="add-url-btn" onclick="addUrlField()">+ Add another URL</button>
+      <div class="url-actions" style="margin-top:10px">
+        <button class="add-url-btn" onclick="addPersonGroup()">+ Add another person</button>
         <button class="btn btn-primary" id="generate-btn" onclick="generate()">
           <span>Generate</span>
         </button>
       </div>
       <p style="margin-top:12px;font-size:12px;color:var(--muted)">
-        Each doc must be set to <strong>Anyone with the link can view</strong>.
-        Stories generate one by one.
+        Each source must be set to <strong>Anyone with the link can view</strong>.
+        Add a Sheet URL to combine both sources into one story.
       </p>
     </div>
 
@@ -433,42 +491,74 @@
     });
   });
 
-  // ── URL field management ──────────────────────────────────────────────────────
-  function addUrlField() {
+  // ── URL group management ──────────────────────────────────────────────────────
+  function addPersonGroup() {
     const list = document.getElementById('url-list');
-    const row = document.createElement('div');
-    row.className = 'url-row';
-    row.innerHTML = `
-      <input type="text" class="doc-url"
-        placeholder="https://docs.google.com/document/d/…"
-        autocomplete="off" spellcheck="false"/>
-      <button class="remove-url-btn" onclick="removeUrlField(this)" title="Remove">×</button>
+    const group = document.createElement('div');
+    group.className = 'url-group';
+    group.innerHTML = `
+      <div class="url-row">
+        <span class="url-label">Doc</span>
+        <input type="text" class="doc-url primary"
+          placeholder="https://docs.google.com/document/d/…"
+          autocomplete="off" spellcheck="false"/>
+      </div>
+      <div class="group-footer">
+        <button class="add-sheet-btn" onclick="addSheetRow(this)">+ Add Sheet URL</button>
+        <button class="remove-group-btn" onclick="removeGroup(this)">✕ Remove</button>
+      </div>
     `;
-    list.appendChild(row);
-    row.querySelector('input').focus();
+    list.appendChild(group);
+    group.querySelector('input').focus();
     updateRemoveButtons();
   }
 
-  function removeUrlField(btn) {
-    btn.closest('.url-row').remove();
+  function removeGroup(btn) {
+    btn.closest('.url-group').remove();
     updateRemoveButtons();
+  }
+
+  function addSheetRow(btn) {
+    const group = btn.closest('.url-group');
+    // Only one sheet row per group
+    if (group.querySelector('.sheet-row')) return;
+    const row = document.createElement('div');
+    row.className = 'url-row sheet-row';
+    row.innerHTML = `
+      <span class="url-label" style="color:#059669">Sheet</span>
+      <input type="text" class="doc-url secondary"
+        placeholder="https://docs.google.com/spreadsheets/d/…"
+        autocomplete="off" spellcheck="false"/>
+      <button class="remove-url-btn" onclick="removeSheetRow(this)" title="Remove sheet">×</button>
+    `;
+    // Insert before group-footer
+    const footer = group.querySelector('.group-footer');
+    group.insertBefore(row, footer);
+    row.querySelector('input').focus();
+    btn.style.display = 'none';
+  }
+
+  function removeSheetRow(btn) {
+    const group = btn.closest('.url-group');
+    btn.closest('.url-row').remove();
+    group.querySelector('.add-sheet-btn').style.display = '';
   }
 
   function updateRemoveButtons() {
-    const rows = document.querySelectorAll('#url-list .url-row');
-    rows.forEach(row => {
-      const existing = row.querySelector('.remove-url-btn');
-      if (rows.length > 1) {
-        if (!existing) {
+    const groups = document.querySelectorAll('#url-list .url-group');
+    groups.forEach(group => {
+      const removeBtn = group.querySelector('.remove-group-btn');
+      if (groups.length > 1) {
+        if (!removeBtn) {
+          const footer = group.querySelector('.group-footer');
           const btn = document.createElement('button');
-          btn.className = 'remove-url-btn';
-          btn.title = 'Remove';
-          btn.textContent = '×';
-          btn.onclick = () => removeUrlField(btn);
-          row.appendChild(btn);
+          btn.className = 'remove-group-btn';
+          btn.textContent = '✕ Remove';
+          btn.onclick = () => removeGroup(btn);
+          footer.appendChild(btn);
         }
       } else {
-        if (existing) existing.remove();
+        if (removeBtn) removeBtn.remove();
       }
     });
   }
@@ -520,7 +610,7 @@
   }
 
   // ── Generate one story via SSE ────────────────────────────────────────────────
-  function generateOne(inputType, content, index, label) {
+  function generateOne(sources, index, label) {
     return new Promise((resolve) => {
       const statusEl = document.getElementById(`story-status-${index}`);
       const bodyEl   = document.getElementById(`story-body-${index}`);
@@ -581,7 +671,7 @@
       fetch('/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: inputType, content }),
+        body: JSON.stringify({ sources }),
       }).then(resp => {
         const reader  = resp.body.getReader();
         const decoder = new TextDecoder();
@@ -636,13 +726,19 @@
 
     const isUrl = activeTab === 'url';
 
-    // Collect jobs
+    // Collect jobs — each job is one story with possibly multiple sources
     const jobs = [];
     if (isUrl) {
-      const inputs = document.querySelectorAll('#url-list .doc-url');
-      inputs.forEach((inp, i) => {
-        const val = inp.value.trim();
-        if (val) jobs.push({ type: 'url', content: val, label: `Story ${i + 1}` });
+      const groups = document.querySelectorAll('#url-list .url-group');
+      groups.forEach((group, i) => {
+        const primary = group.querySelector('.primary')?.value.trim();
+        const secondary = group.querySelector('.secondary')?.value.trim();
+        const sources = [];
+        if (primary) sources.push({ type: 'url', content: primary });
+        if (secondary) sources.push({ type: 'url', content: secondary });
+        if (sources.length > 0) {
+          jobs.push({ sources, label: `Person ${i + 1}` });
+        }
       });
       if (jobs.length === 0) {
         setStatus('Please enter at least one Google Doc URL.', 'error');
@@ -656,7 +752,7 @@
         document.getElementById('status-bar').classList.add('visible');
         return;
       }
-      jobs.push({ type: 'text', content: text, label: 'Story' });
+      jobs.push({ sources: [{ type: 'text', content: text }], label: 'Story' });
     }
 
     // Clear previous output
@@ -676,7 +772,7 @@
       const labelEl = card.querySelector('.story-label');
       labelEl.textContent = jobs.length > 1 ? `Story ${i + 1} of ${jobs.length}` : 'Case Report';
 
-      await generateOne(job.type, job.content, i, job.label);
+      await generateOne(job.sources, i, job.label);
     }
 
     setStatus(`Done! ${jobs.length} ${jobs.length === 1 ? 'story' : 'stories'} generated.`, 'done');
@@ -739,7 +835,7 @@
   }
 
   // Enter key on first URL input
-  document.querySelector('.doc-url').addEventListener('keydown', e => {
+  document.querySelector('.doc-url.primary').addEventListener('keydown', e => {
     if (e.key === 'Enter') generate();
   });
 </script>

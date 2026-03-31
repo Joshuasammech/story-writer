@@ -12,6 +12,8 @@ from functools import wraps
 from dotenv import load_dotenv
 load_dotenv()
 
+import csv
+
 import anthropic
 import requests
 from docx import Document
@@ -125,26 +127,71 @@ def login_required(f):
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+def detect_url_type(url: str) -> str:
+    """Return 'sheet' or 'doc' based on URL pattern."""
+    if "spreadsheets" in url:
+        return "sheet"
+    return "doc"
+
+
 def extract_doc_id(url_or_id: str) -> str:
     match = re.search(r"/d/([a-zA-Z0-9_-]+)", url_or_id)
     return match.group(1) if match else url_or_id.strip()
 
 
-def fetch_google_doc(url_or_id: str) -> tuple[str, str]:
-    doc_id = extract_doc_id(url_or_id)
-    export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
+def _safe_get(url: str) -> requests.Response:
+    """GET with retry on connection/timeout errors."""
     for attempt in range(2):
         try:
-            resp = requests.get(export_url, timeout=25)
-            break
+            return requests.get(url, timeout=25)
         except requests.exceptions.ConnectionError:
             if attempt == 1:
                 raise RuntimeError(
-                    "Could not reach Google Docs. Check your internet connection or try again."
+                    "Could not reach Google. Check your internet connection or try again."
                 )
         except requests.exceptions.Timeout:
             if attempt == 1:
-                raise RuntimeError("Google Docs request timed out. Try again.")
+                raise RuntimeError("Google request timed out. Try again.")
+
+
+def fetch_google_sheet(url_or_id: str) -> tuple[str, str]:
+    """Fetch a Google Sheet as CSV and return (title, formatted_text)."""
+    sheet_id = extract_doc_id(url_or_id)
+    # Preserve gid (tab) if present in the URL
+    gid_match = re.search(r"[#&?]gid=(\d+)", url_or_id)
+    gid_param = f"&gid={gid_match.group(1)}" if gid_match else ""
+    export_url = (
+        f"https://docs.google.com/spreadsheets/d/{sheet_id}"
+        f"/export?format=csv{gid_param}"
+    )
+    resp = _safe_get(export_url)
+    if resp.status_code == 403:
+        raise RuntimeError(
+            'Sheet access denied. Share it as "Anyone with the link can view".'
+        )
+    if resp.status_code == 404:
+        raise RuntimeError("Sheet not found. Check the URL is correct.")
+    if not resp.ok:
+        raise RuntimeError(f"Failed to fetch sheet (HTTP {resp.status_code}).")
+
+    # Convert CSV → readable text table
+    lines = []
+    reader = csv.reader(resp.text.splitlines())
+    rows = list(reader)
+    if not rows:
+        raise RuntimeError("The sheet appears to be empty.")
+    title = rows[0][0] if rows[0] else "Google Sheet"
+    for row in rows:
+        non_empty = [c.strip() for c in row if c.strip()]
+        if non_empty:
+            lines.append(" | ".join(non_empty))
+    return title, "\n".join(lines)
+
+
+def fetch_google_doc(url_or_id: str) -> tuple[str, str]:
+    doc_id = extract_doc_id(url_or_id)
+    export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
+    resp = _safe_get(export_url)
     if resp.status_code == 403:
         raise RuntimeError(
             'Access denied. Share the doc as "Anyone with the link can view".'
@@ -202,30 +249,63 @@ def index():
 @login_required
 def generate():
     body = request.get_json(force=True)
-    input_type = body.get("type", "url")
-    content    = body.get("content", "").strip()
 
-    if not content:
-        return {"error": "No content provided."}, 400
+    # Support multi-source: sources=[{type,content}, ...] or legacy single
+    sources = body.get("sources", None)
+    if sources is None:
+        input_type = body.get("type", "url")
+        content    = body.get("content", "").strip()
+        if not content:
+            return {"error": "No content provided."}, 400
+        sources = [{"type": input_type, "content": content}]
 
     def stream():
         try:
-            if input_type == "url":
-                yield sse("status", "Fetching Google Doc…")
-                try:
-                    title, report_text = fetch_google_doc(content)
-                except RuntimeError as e:
-                    yield sse("error", str(e))
-                    return
-                if not report_text:
-                    yield sse("error", "The document appears to be empty.")
-                    return
-                yield sse("status", f'Fetched: "{title}" ({len(report_text):,} chars)')
-            else:
-                title = "Pasted Report"
-                report_text = content
-                yield sse("status", f"Using pasted text ({len(report_text):,} chars)")
+            combined_parts = []
+            main_title = "Report"
 
+            for idx, src in enumerate(sources):
+                src_type    = src.get("type", "url")
+                src_content = src.get("content", "").strip()
+                if not src_content:
+                    continue
+
+                if src_type == "url":
+                    url_kind = detect_url_type(src_content)
+                    if url_kind == "sheet":
+                        label = f"Source {idx+1} (Google Sheet)"
+                        yield sse("status", f"Fetching {label}…")
+                        try:
+                            title, text = fetch_google_sheet(src_content)
+                        except RuntimeError as e:
+                            yield sse("error", str(e))
+                            return
+                    else:
+                        label = f"Source {idx+1} (Google Doc)"
+                        yield sse("status", f"Fetching {label}…")
+                        try:
+                            title, text = fetch_google_doc(src_content)
+                        except RuntimeError as e:
+                            yield sse("error", str(e))
+                            return
+                    if not text:
+                        yield sse("error", f"{label} appears to be empty.")
+                        return
+                    if idx == 0:
+                        main_title = title
+                    combined_parts.append(f"=== {label}: {title} ===\n{text}")
+                    yield sse("status", f'Fetched: "{title}" ({len(text):,} chars)')
+                else:
+                    combined_parts.append(f"=== Pasted Text ===\n{src_content}")
+                    if idx == 0:
+                        main_title = "Pasted Report"
+                    yield sse("status", f"Using pasted text ({len(src_content):,} chars)")
+
+            if not combined_parts:
+                yield sse("error", "No content provided.")
+                return
+
+            report_text = "\n\n".join(combined_parts)
             yield sse("status", "Writing case study…")
 
             # Provide up to 4000 chars of context for the richer template
@@ -234,7 +314,7 @@ def generate():
                 report_text = report_text[:MAX_CHARS] + "\n[truncated]"
 
             client = anthropic.Anthropic()
-            user_message = f"Title: {title}\n\n{report_text}"
+            user_message = f"Title: {main_title}\n\n{report_text}"
 
             with client.messages.stream(
                 model="claude-sonnet-4-6",
