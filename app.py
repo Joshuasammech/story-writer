@@ -293,31 +293,64 @@ def generate():
             if len(report_text) > MAX_CHARS:
                 report_text = report_text[:MAX_CHARS] + "\n[truncated]"
 
-            client = anthropic.Anthropic(timeout=60.0)
-            user_message = f"Title: {main_title}\n\n{report_text}"
+            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+            if not api_key:
+                yield sse("error", "ANTHROPIC_API_KEY is not set.")
+                return
 
-            with client.messages.stream(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=900,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": user_message}],
-            ) as stream_obj:
-                writing_started = False
-                for event in stream_obj:
-                    if event.type == "content_block_start":
-                        if event.content_block.type == "text" and not writing_started:
-                            writing_started = True
-                            yield sse("writing_start", "")
-                    elif event.type == "content_block_delta":
-                        if event.delta.type == "text_delta":
-                            yield sse("token", event.delta.text)
+            user_message = f"Title: {main_title}\n\n{report_text}"
+            payload = {
+                "model": "claude-haiku-4-5-20251001",
+                "max_tokens": 900,
+                "system": SYSTEM_PROMPT,
+                "messages": [{"role": "user", "content": user_message}],
+                "stream": True,
+            }
+            headers = {
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            }
+
+            resp = requests.post(
+                "https://api.anthropic.com/v1/messages",
+                json=payload,
+                headers=headers,
+                stream=True,
+                timeout=60,
+            )
+
+            if resp.status_code == 401:
+                yield sse("error", "Invalid API key.")
+                return
+            if resp.status_code != 200:
+                yield sse("error", f"API error {resp.status_code}: {resp.text[:200]}")
+                return
+
+            yield sse("writing_start", "")
+            for line in resp.iter_lines():
+                if not line:
+                    continue
+                line = line.decode("utf-8") if isinstance(line, bytes) else line
+                if line.startswith("data: "):
+                    data = line[6:]
+                    if data == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data)
+                        if chunk.get("type") == "content_block_delta":
+                            delta = chunk.get("delta", {})
+                            if delta.get("type") == "text_delta":
+                                yield sse("token", delta.get("text", ""))
+                    except json.JSONDecodeError:
+                        pass
 
             yield sse("done", "")
 
-        except anthropic.APIConnectionError:
-            yield sse("error", "Cannot reach the AI API. Check that ANTHROPIC_API_KEY is set in Railway environment variables.")
-        except anthropic.AuthenticationError:
-            yield sse("error", "Invalid API key. Set ANTHROPIC_API_KEY in Railway environment variables.")
+        except requests.exceptions.ConnectionError as e:
+            yield sse("error", f"Network error reaching Anthropic API: {e}")
+        except requests.exceptions.Timeout:
+            yield sse("error", "Request to Anthropic API timed out.")
         except Exception as e:
             yield sse("error", f"{type(e).__name__}: {e}")
 
