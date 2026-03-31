@@ -122,7 +122,7 @@ def _safe_get(url: str) -> requests.Response:
     """GET with retry on connection/timeout errors."""
     for attempt in range(2):
         try:
-            return requests.get(url, timeout=25)
+            return requests.get(url, timeout=45)
         except requests.exceptions.ConnectionError:
             if attempt == 1:
                 raise RuntimeError(
