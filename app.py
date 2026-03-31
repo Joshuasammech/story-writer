@@ -293,7 +293,7 @@ def generate():
             if len(report_text) > MAX_CHARS:
                 report_text = report_text[:MAX_CHARS] + "\n[truncated]"
 
-            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+            api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
             if not api_key:
                 yield sse("error", "ANTHROPIC_API_KEY is not set.")
                 return
